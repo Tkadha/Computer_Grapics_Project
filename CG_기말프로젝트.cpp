@@ -213,10 +213,29 @@ public:
 	}
 };
 
-
+class Floor :public Shape {
+public:
+	glm::vec3 pos;
+};
+class Wall : public Shape {
+public:
+	glm::vec3 pos;
+};
 
 glm::vec3 light_pos;
 glm::vec3 light_color;
+glm::vec3 camera_pos;
+
+Floor floors[10][10];
+Wall walls[4][10][10];
+
+
+glm::vec3 head_angle;
+
+
+
+
+
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
 	//--- 윈도우 생성하기
@@ -234,12 +253,9 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	}
 
 	{
-		light_pos.x = 1.f;
-		light_pos.y = 1.f;
-		light_pos.z = 2.f;
-		light_color.x = 1.0f;
-		light_color.y = 1.0f;
-		light_color.z = 1.0f;
+		light_color = { 0.7f,0.7f,0.7f };
+		light_pos = { 1.f,10.f,1.f };
+		camera_pos = { 0.f, 1.f, 0.f };
 	}
 
 	InitBuffer();
@@ -253,7 +269,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 {
 	GLfloat rColor, gColor, bColor;
-	rColor = gColor = bColor = 0.0f;
+	rColor = gColor = bColor = 0.7f;
 	glClearColor(rColor, gColor, bColor, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -269,16 +285,17 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	//투영행렬
 	glm::mat4 proj = glm::mat4(1.0f);
 	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
-	proj = glm::translate(proj, glm::vec3(0.f, 0.f, -5.0f));
+	proj = glm::translate(proj, glm::vec3(0.f, 0.f, 0.f));
 	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &proj[0][0]);
 
 	//뷰 행렬
-	glm::vec3 cameraPos = glm::vec3(0.f, 2.f, 2.0f); //--- 카메라 위치
-	glm::vec3 cameraDirection = glm::vec3(0.f, 0.f, 0.f); //--- 카메라 바라보는 방향
+	glm::vec3 cameraPos = glm::vec3(camera_pos); //--- 카메라 위치
+	glm::vec3 cameraDirection = glm::vec3(camera_pos.x - 2.0f, camera_pos.y, 0.f); //--- 카메라 바라보는 방향
 	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- 카메라 위쪽 방향
 	glm::mat4 view = glm::mat4(1.0f);
-
+	std::cout << cameraPos.x << '\n';
 	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+	view = glm::rotate(view, glm::radians(head_angle.y), glm::vec3(0.f, 1.f, 0.f));
 	glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
 
 
@@ -287,14 +304,31 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	unsigned int lightColorLocation = glGetUniformLocation(shaderProgramID, "lightColor");
 	glUniform3f(lightColorLocation, light_color.x, light_color.y, light_color.z);
 	unsigned int viewPosLocation = glGetUniformLocation(shaderProgramID, "viewPos");
-	glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
+	glUniform3f(viewPosLocation, light_pos.x, light_pos.y, light_pos.z);
 	unsigned int AmbientPosLocation = glGetUniformLocation(shaderProgramID, "amb_light");
 
 	glm::mat4 trans = glm::mat4(1.0f);
 	unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
 	glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 
-
+	for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			trans = glm::mat4(1.0f);
+			trans = glm::translate(trans, glm::vec3(floors[i][j].pos));
+			glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+			floors[i][j].Draw_shape();
+		}
+	}
+	for (int k = 0; k < 4; ++k) {
+		for (int i = 0; i < 10; ++i) {
+			for (int j = 0; j < 10; ++j) {
+				trans = glm::mat4(1.0f);
+				trans = glm::translate(trans, glm::vec3(walls[k][i][j].pos));
+				glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+				walls[k][i][j].Draw_shape();
+			}
+		}
+	}
 
 	glutSwapBuffers(); // 화면에 출력하기
 }
@@ -379,8 +413,30 @@ void InitBuffer() {
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
-
-
+	for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			floors[i][j].Load_Obj("cube_floor.obj");
+			floors[i][j].Set_color(1.f, 1.f, 1.f);
+			floors[i][j].Create_texture("./resource/floor_1.jpg");
+			floors[i][j].pos = { 0.5f + 1.f * (j - 5),-1.f,0.5f + 1.f * (i - 5) };
+			walls[0][i][j].Load_Obj("cube_floor.obj");
+			walls[0][i][j].Set_color(1.f, 1.f, 1.f);
+			walls[0][i][j].Create_texture("./resource/wall_2.jpg");
+			walls[0][i][j].pos = { -5.5f, i * 1.f, 0.5f + 1.f * (j - 5) };
+			walls[1][i][j].Load_Obj("cube_floor.obj");
+			walls[1][i][j].Set_color(1.f, 1.f, 1.f);
+			walls[1][i][j].Create_texture("./resource/wall_2.jpg");
+			walls[1][i][j].pos = { 5.5f, i * 1.f, 0.5f + 1.f * (j - 5) };
+			walls[2][i][j].Load_Obj("cube_floor.obj");
+			walls[2][i][j].Set_color(1.f, 1.f, 1.f);
+			walls[2][i][j].Create_texture("./resource/wall_2.jpg");
+			walls[2][i][j].pos = { 0.5f + 1.f * (j - 5), i * 1.f, -5.5f };
+			walls[3][i][j].Load_Obj("cube_floor.obj");
+			walls[3][i][j].Set_color(1.f, 1.f, 1.f);
+			walls[3][i][j].Create_texture("./resource/wall_2.jpg");
+			walls[3][i][j].pos = { 0.5f + 1.f * (j - 5), i * 1.f, 5.5f };
+		}
+	}
 }
 GLvoid Keyboard(unsigned char key, int x, int y)
 {
@@ -388,6 +444,15 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case 'q':
 	case 'Q':
 		exit(0);
+		break;
+	case 's':
+		camera_pos.x += 0.1f;
+		break;
+	case 'w':
+		camera_pos.x -= 0.1f;
+		break;
+	case 'y':
+		head_angle.y += 1.f;
 		break;
 	}
 	glutPostRedisplay();
