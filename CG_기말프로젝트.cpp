@@ -1,4 +1,5 @@
 #define  _CRT_SECURE_NO_WARNINGS
+#define STB_IMAGE_IMPLEMENTATION
 #include <iostream>
 #include <gl/glew.h>
 #include <gl/freeglut.h>
@@ -8,15 +9,12 @@
 #include <gl/glm/ext/matrix_transform.hpp>
 #include <stdlib.h>
 #include <random>
-#include <math.h>
 #include <fstream>
+#include "stb_image.h"
 
 #define Width 1200
 #define Height 800
-#define side_length 0.2
-#define board_size 3
-#define PI 3.14159265
-#define snow_count 80
+
 void make_vertexShaders();
 void make_fragmentShaders();
 void make_shaderProgram();
@@ -37,13 +35,18 @@ std::uniform_real_distribution<> random_color(0.1, 1);
 
 class Shape {
 public:
-	GLuint vbo[3];
+	GLuint vbo[4];
 	int vertex_count;
-	void load_Obj(const char* path)
+	unsigned int texturemap;
+	int width_image, height_image, number_of_channel;
+	unsigned char* data;
+
+	void Load_Obj(const char* path)
 	{
 		int v_count = 0;
 		int n_count = 0;
 		int f_count = 0;
+		int vt_count = 0;
 		std::string lineHeader;
 		std::ifstream in(path);
 		if (!in) {
@@ -53,17 +56,22 @@ public:
 		while (in >> lineHeader) {
 			if (lineHeader == "v")	++v_count;
 			else if (lineHeader == "f")	++f_count;
+			else if (lineHeader == "vt") ++vt_count;
 		}
 		in.close();
 		in.open(path);
 
 		glm::vec3* vertex = new glm::vec3[v_count];
 		glm::vec3* face = new glm::vec3[f_count];
+		glm::vec3* face_text = new glm::vec3[f_count];
+		glm::vec2* texture = new glm::vec2[vt_count];
 		glm::vec3* vertexdata = new glm::vec3[f_count * 3];
 		glm::vec3* normaldata = new glm::vec3[f_count * 3];
-		glm::vec3* colordata = new glm::vec3[f_count * 3];
+		glm::vec4* colordata = new glm::vec4[f_count * 3];
+		glm::vec2* texdata = new glm::vec2[f_count * 3];
 		vertex_count = f_count * 3;
 		int v_incount = 0;
+		int vt_incount = 0;
 		int f_incount = 0;
 		int color_count = 0;
 		while (in >> lineHeader) {
@@ -71,11 +79,19 @@ public:
 				in >> vertex[v_incount].x >> vertex[v_incount].y >> vertex[v_incount].z;
 				++v_incount;
 			}
+			else if (lineHeader == "vt") {
+				in >> texture[vt_incount].x >> texture[vt_incount].y;
+				++vt_incount;
+			}
 			else if (lineHeader == "f") {
-				in >> face[f_incount].x >> face[f_incount].y >> face[f_incount].z;
+				in >> face[f_incount].x >> face[f_incount].y >> face[f_incount].z >> face_text[f_incount].x >> face_text[f_incount].y >> face_text[f_incount].z;
 				vertexdata[f_incount * 3 + 0] = vertex[static_cast<int>(face[f_incount].x - 1)];
 				vertexdata[f_incount * 3 + 1] = vertex[static_cast<int>(face[f_incount].y - 1)];
 				vertexdata[f_incount * 3 + 2] = vertex[static_cast<int>(face[f_incount].z - 1)];
+
+				texdata[f_incount * 3 + 0] = texture[static_cast<int>(face_text[f_incount].x - 1)];
+				texdata[f_incount * 3 + 1] = texture[static_cast<int>(face_text[f_incount].y - 1)];
+				texdata[f_incount * 3 + 2] = texture[static_cast<int>(face_text[f_incount].z - 1)];
 				++f_incount;
 			}
 		}
@@ -91,10 +107,11 @@ public:
 			colordata[color_count].x = random_color(gen);
 			colordata[color_count].y = random_color(gen);
 			colordata[color_count].z = random_color(gen);
+			colordata[color_count].a = 1.0f;
 			color_count++;
 		}
 
-		glGenBuffers(3, vbo);
+		glGenBuffers(4, vbo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec3), vertexdata, GL_STATIC_DRAW);
@@ -102,8 +119,8 @@ public:
 		glEnableVertexAttribArray(0);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec3), colordata, GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec4), colordata, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
@@ -111,32 +128,93 @@ public:
 		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(2);
 
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec2), texdata, GL_STATIC_DRAW);
+		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(3);
+
 		delete[] vertex;
 		vertex = nullptr;
 		delete[] face;
 		face = nullptr;
+		delete[] face_text;
+		face_text = nullptr;
 		delete[] vertexdata;
 		vertexdata = nullptr;
 		delete[] normaldata;
 		normaldata = nullptr;
 		delete[] colordata;
 		colordata = nullptr;
+		delete[] texdata;
+		texdata = nullptr;
 	}
-	void Set_color(float color) {
-		glm::vec3* colordata = new glm::vec3[vertex_count];
+	void Set_color(float r, float g, float b) {
+		glm::vec4* colordata = new glm::vec4[vertex_count];
 		for (int i = 0; i < vertex_count; ++i) {
-			colordata[i].x = color;
-			colordata[i].y = color;
-			colordata[i].z = color;
+			colordata[i] = { r,g,b,1.0f };
 		}
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec3), colordata, GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(glm::vec4), colordata, GL_STATIC_DRAW);
+		glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(1);
 		delete[] colordata;
 		colordata = nullptr;
 	}
+
+	void Create_texture(const char* path) {
+		glGenTextures(1, &texturemap);
+		glBindTexture(GL_TEXTURE_2D, texturemap);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		data = stbi_load(path, &width_image, &height_image, &number_of_channel, 0);
+		if (data)
+		{
+			if (number_of_channel == 4) {
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width_image, height_image, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+			}
+			else {
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width_image, height_image, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+			}
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Failed to load texture" << std::endl;
+		}
+	}
+	void Draw_shape() {
+		int PosLocation = glGetAttribLocation(shaderProgramID, "in_Position"); //	: 0
+		int ColorLocation = glGetAttribLocation(shaderProgramID, "in_Color"); //	: 1
+		int NormalLocation = glGetAttribLocation(shaderProgramID, "in_Normal"); //	: 2
+		int TextureLocation = glGetAttribLocation(shaderProgramID, "vTexCoord"); //	: 3
+		glEnableVertexAttribArray(PosLocation);
+		glEnableVertexAttribArray(ColorLocation);
+		glEnableVertexAttribArray(NormalLocation);
+		glEnableVertexAttribArray(TextureLocation);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glVertexAttribPointer(PosLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glVertexAttribPointer(ColorLocation, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glVertexAttribPointer(NormalLocation, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+		glVertexAttribPointer(TextureLocation, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), 0);
+		glBindTexture(GL_TEXTURE_2D, texturemap);
+		glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+
+		glDisableVertexAttribArray(ColorLocation);
+		glDisableVertexAttribArray(PosLocation);
+		glDisableVertexAttribArray(NormalLocation);
+		glDisableVertexAttribArray(TextureLocation);
+	}
 };
+
+
+
 glm::vec3 light_pos;
 glm::vec3 light_color;
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
@@ -183,12 +261,6 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glBindVertexArray(vao);
 
 	glEnable(GL_DEPTH_TEST);
-	int PosLocation = glGetAttribLocation(shaderProgramID, "in_Position"); //	: 0
-	int ColorLocation = glGetAttribLocation(shaderProgramID, "in_Color"); //	: 1
-	int NormalLocation = glGetAttribLocation(shaderProgramID, "in_Normal"); //	: 2
-	glEnableVertexAttribArray(PosLocation);
-	glEnableVertexAttribArray(ColorLocation);
-	glEnableVertexAttribArray(NormalLocation);
 
 
 	unsigned int proj_location = glGetUniformLocation(shaderProgramID, "projection");
@@ -218,16 +290,10 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glUniform3f(viewPosLocation, cameraPos.x, cameraPos.y, cameraPos.z);
 	unsigned int AmbientPosLocation = glGetUniformLocation(shaderProgramID, "amb_light");
 
-
 	glm::mat4 trans = glm::mat4(1.0f);
 	unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
 	glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 
-
-
-	glDisableVertexAttribArray(ColorLocation);
-	glDisableVertexAttribArray(PosLocation);
-	glDisableVertexAttribArray(NormalLocation);
 
 
 	glutSwapBuffers(); // 화면에 출력하기
@@ -312,6 +378,7 @@ void InitBuffer() {
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
+
 
 
 }

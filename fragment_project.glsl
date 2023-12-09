@@ -1,19 +1,20 @@
 #version 330 core
 
-in vec3 out_Color; 
+in vec4 out_Color; 
 in vec3 FragPos;
 in vec3 Normal;
+in vec2 TexCoord;
 
 out vec4 FragColor;
 
 uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform vec3 viewPos;
-
+uniform sampler2D outTexture;
 
 void main(void)
 {
-	float ambientLight = 0.3;
+	float ambientLight = 0.7;
 	vec3 ambient = ambientLight * lightColor;
 
 	vec3 normalVector = normalize(Normal);
@@ -28,7 +29,8 @@ void main(void)
 	specularLight = pow(specularLight,shininess);
 	vec3 specular = specularLight * lightColor;
 	
-	vec3 result = (ambient + diffuse + specular) * out_Color;
+	vec3 result = (ambient + diffuse + specular) * out_Color.xyz;
 
-	FragColor = vec4 (result, 1.0);
+	FragColor = vec4(result, out_Color.a);
+	FragColor = texture(outTexture, TexCoord) * FragColor;
 }
