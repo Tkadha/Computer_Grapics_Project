@@ -23,6 +23,10 @@ GLvoid Reshape(int w, int h);
 char* filetobuf(const char* file);
 void InitBuffer();
 GLvoid Keyboard(unsigned char key, int x, int y);
+void Mouse(int button, int state, int x, int y);
+void Motion(int x, int y);
+void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
+
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
 GLuint shaderProgramID;
@@ -232,6 +236,23 @@ Wall walls[4][10][10];
 
 glm::vec3 head_angle;
 
+// 태경
+glm::vec3 mouse_before{};
+const float dpi = 5.0f;		// 사실 dpi 아니고 mouse_speed
+GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
+	
+	//gpt는 신이야
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸려고 추가
+
+float cameraSpeed = 0.05f; // 조절 가능한 카메라 이동 속도
+float sensitivity = 0.05f; // 조절 가능한 마우스 감도
+
+float yaw = -90.0f; // 카메라의 초기 yaw 각도
+float pitch = 0.0f;  // 카메라의 초기 pitch 각도
+
+bool firstMouse = true;
+float lastX = 400.0f;
+float lastY = 300.0f;
 
 
 
@@ -242,7 +263,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 	glutInitWindowPosition(100, 100);
-	glutInitWindowSize(Width, Height);
+	glutInitWindowSize(window_w, window_h);
 	glutCreateWindow("Project_Portal");
 	glewExperimental = GL_TRUE;
 	glewInit();
@@ -263,6 +284,8 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
+	glutMouseFunc(Mouse);
+	glutPassiveMotionFunc(Motion);	// 마우스 이동 항상 입력받기
 	glutMainLoop();
 }
 
@@ -278,7 +301,6 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 
 	glEnable(GL_DEPTH_TEST);
 
-
 	unsigned int proj_location = glGetUniformLocation(shaderProgramID, "projection");
 	unsigned int view_location = glGetUniformLocation(shaderProgramID, "view");
 
@@ -290,10 +312,11 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 
 	//뷰 행렬
 	glm::vec3 cameraPos = glm::vec3(camera_pos); //--- 카메라 위치
-	glm::vec3 cameraDirection = glm::vec3(camera_pos.x - 2.0f, camera_pos.y, 0.f); //--- 카메라 바라보는 방향
+	//glm::vec3 cameraDirection = glm::vec3(camera_pos.x - 2.0f, camera_pos.y, 0.f); //--- 카메라 바라보는 방향
+	glm::vec3 cameraDirection = camera_pos + cameraFront; // fps만들려고 바꿨음 (gpt님님님이 이렇게 하라해서)
 	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- 카메라 위쪽 방향
 	glm::mat4 view = glm::mat4(1.0f);
-	std::cout << cameraPos.x << '\n';
+	//std::cout << cameraPos.x << '\n';
 	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 	view = glm::rotate(view, glm::radians(head_angle.y), glm::vec3(0.f, 1.f, 0.f));
 	glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
@@ -335,6 +358,8 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 GLvoid Reshape(int w, int h) //--- 콜백 함수: 다시 그리기 콜백 함수
 {
 	glViewport(0, 0, w, h);
+	window_w = w;
+	window_h = h;
 }
 void make_vertexShaders()
 {
@@ -456,4 +481,71 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		break;
 	}
 	glutPostRedisplay();
+}
+
+
+void Mouse(int button, int state, int x, int y)
+{
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		//leftclick = true;
+
+	}
+	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+		//leftclick = false;
+	}
+	glutPostRedisplay();
+}
+
+void Motion(int x, int y)
+{
+	/*float mouse_x, mouse_y;
+	pos_change(x, y, &mouse_x, &mouse_y);
+
+	head_angle.y += (mouse_x - mouse_before.x) * dpi;
+
+	mouse_before.x = mouse_x;
+
+	std::cout << mouse_x << std::endl;*/
+	if (firstMouse) {
+		lastX = static_cast<float>(x);
+		lastY = static_cast<float>(y);
+		firstMouse = false;
+	}
+
+	float xOffset = static_cast<float>(x - window_w / 2);
+	float yOffset = static_cast<float>(window_h / 2 - y);
+
+	xOffset *= sensitivity;
+	yOffset *= sensitivity;
+
+	yaw += xOffset;
+	pitch += yOffset;
+
+	// pitch의 범위를 제한합니다.
+	if (pitch > 89.0f) {
+		pitch = 89.0f;
+	}
+	if (pitch < -89.0f) {
+		pitch = -89.0f;
+	}
+
+	glm::vec3 newFront;
+	newFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	newFront.y = sin(glm::radians(pitch));
+	newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+	cameraFront = glm::normalize(newFront);
+
+	lastX = static_cast<float>(x);
+	lastY = static_cast<float>(y);
+
+	glutWarpPointer(window_w / 2, window_h / 2);	// 마우스를 중앙에 고정 (gpt님님님이 알려줌)
+
+	glutPostRedisplay();
+}
+
+
+void pos_change(int win_x, int win_y, float* gl_x, float* gl_y)
+{
+	*gl_x = (win_x - window_w / 2) / (window_w / 2);
+	*gl_y = -(win_y - window_h / 2) / (window_h / 2);
 }
