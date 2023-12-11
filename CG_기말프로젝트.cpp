@@ -26,6 +26,7 @@ GLvoid Keyboard(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
 void Motion(int x, int y);
 void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
+glm::vec3 set_dir(float yaw, float pitch);
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
@@ -237,9 +238,8 @@ Wall walls[4][10][10];
 glm::vec3 head_angle;
 
 // 태경
-glm::vec3 mouse_before{};
-const float dpi = 5.0f;		// 사실 dpi 아니고 mouse_speed
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
+float speed = 0.05f;		// 주인공 이동속도
 	
 	//gpt는 신이야
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸려고 추가
@@ -471,10 +471,26 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		exit(0);
 		break;
 	case 's':
-		camera_pos.x += 0.1f;
+		camera_pos.x -= cameraFront.x * speed;
+		camera_pos.z -= cameraFront.z * speed;
 		break;
 	case 'w':
-		camera_pos.x -= 0.1f;
+		camera_pos.x += cameraFront.x * speed;
+		camera_pos.z += cameraFront.z * speed;
+		break;
+	case 'a':
+	{
+		glm::vec3 dir = set_dir(yaw - 90, pitch);
+		camera_pos.x += dir.x * speed;
+		camera_pos.z += dir.z * speed;
+	}
+		break;
+	case 'd':
+	{
+		glm::vec3 dir = set_dir(yaw + 90, pitch);
+		camera_pos.x += dir.x * speed;
+		camera_pos.z += dir.z * speed;
+	}
 		break;
 	case 'y':
 		head_angle.y += 1.f;
@@ -498,14 +514,6 @@ void Mouse(int button, int state, int x, int y)
 
 void Motion(int x, int y)
 {
-	/*float mouse_x, mouse_y;
-	pos_change(x, y, &mouse_x, &mouse_y);
-
-	head_angle.y += (mouse_x - mouse_before.x) * dpi;
-
-	mouse_before.x = mouse_x;
-
-	std::cout << mouse_x << std::endl;*/
 	if (firstMouse) {
 		lastX = static_cast<float>(x);
 		lastY = static_cast<float>(y);
@@ -541,6 +549,15 @@ void Motion(int x, int y)
 	glutWarpPointer(window_w / 2, window_h / 2);	// 마우스를 중앙에 고정 (gpt님님님이 알려줌)
 
 	glutPostRedisplay();
+}
+
+glm::vec3 set_dir(float yaw, float pitch) {
+	glm::vec3 dir;
+	dir.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+	dir.y = sin(glm::radians(pitch));
+	dir.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+	return dir;
 }
 
 
