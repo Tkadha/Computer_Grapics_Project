@@ -15,8 +15,9 @@
 #define Width 1200
 #define Height 800
 #define Wall_count 3
-#define Clear_Wall_count 2
+#define Clear_Wall_count 1
 #define Floor_count 2
+#define Button_count 1
 
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -33,7 +34,7 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
 glm::vec3 set_dir(float yaw, float pitch);
 void move(int);
 void move_floor(int);
-
+void check_collision(int);
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
@@ -264,7 +265,7 @@ public:
 class Cube : public Shape {
 public:
 	glm::vec3 pos;
-	glm::vec3 scale; 
+	glm::vec3 scale;
 	void translate() {
 		glm::mat4 trans = glm::mat4(1.0f);
 		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
@@ -272,6 +273,21 @@ public:
 		trans = glm::scale(trans, glm::vec3(scale));
 		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 	}
+};
+class Button : public Shape {
+public:
+	glm::vec3 pos;
+	glm::vec3 scale;
+	bool push;
+
+	void translate() {
+		glm::mat4 trans = glm::mat4(1.0f);
+		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
+		trans = glm::translate(trans, glm::vec3(pos));
+		trans = glm::scale(trans, glm::vec3(scale));
+		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+	}
+
 };
 glm::vec3 light_pos;
 glm::vec3 light_color;
@@ -290,6 +306,9 @@ Floor floors[Floor_count];
 
 // 들고 다닐수 있는 큐브
 Cube cube;
+
+// 버튼
+Button button[Button_count];
 
 
 
@@ -347,6 +366,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 
 	glutTimerFunc(10, move, 0);
 	glutTimerFunc(10, move_floor, 1);
+	glutTimerFunc(10, check_collision, 0);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
@@ -450,7 +470,12 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	//----------------------------------------------------------------------
 
 
-
+	//-------------------------------버튼-----------------------------------
+	for (int i = 0; i < Button_count; ++i) {
+		button[i].translate();
+		button[i].Draw_shape();
+	}
+	//----------------------------------------------------------------------
 
 
 	//-------------------------------반투명벽-------------------------------
@@ -578,18 +603,19 @@ void InitBuffer() {
 			}
 		}
 	}
+
+
 	for (int i = 0; i < Clear_Wall_count; ++i) {
 		clear_wall[i].Load_Obj("cube_floor.obj");
 		clear_wall[i].Set_alpha(0.44f, 0.77f, 0.92f, 0.4f);
 		clear_wall[i].Create_texture("./resource/white.png");
 	}
 	{
-		clear_wall[0].pos = { 3.75f,0.f,2.5f + (0.125f / 2) };
-		clear_wall[0].scale = { 2.5f, 5.f, 0.125f };
-
-		clear_wall[1].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
-		clear_wall[1].scale = { 0.125f, 2.5f, 2.5f };
+		clear_wall[0].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
+		clear_wall[0].scale = { 0.125f, 2.5f, 2.5f };
 	}
+
+
 	for (int i = 0; i < Wall_count; ++i) {
 		walls[i].Load_Obj("cube_floor.obj");
 		walls[i].Set_color(0.9f, 0.9f, 0.9f);
@@ -606,6 +632,8 @@ void InitBuffer() {
 		walls[2].scale = { 0.125f, 10.f, 2.5f };
 
 	}
+
+
 	for (int i = 0; i < Floor_count; ++i) {
 		floors[i].Load_Obj("cube_floor.obj");
 		floors[i].Set_color(0.9f, 0.9f, 0.9f);
@@ -621,6 +649,22 @@ void InitBuffer() {
 		floors[1].addy = -0.01f;
 
 	}
+
+	for (int i = 0; i < Button_count; ++i) {
+		button[i].Load_Obj("cube_floor.obj");
+		button[i].Set_color(1.0f, 0.2f, 0.2f);
+		button[i].Create_texture("./resource/white.png");
+	}
+	{
+		button[0].pos = { -3.75f - 0.625f ,0.f, -3.75f + 0.625f };
+		button[0].scale = { 0.75f, 0.125f, 0.75f };
+		button[0].push = false;
+	}
+
+
+
+
+
 	cube.Load_Obj("cube_floor.obj");
 	cube.Set_color(1.f, 1.f, 1.f);
 	cube.Create_texture("./resource/cube_face.png");
@@ -768,9 +812,27 @@ void move(int value) {
 }
 void move_floor(int value) {
 	floors[value].pos.y += floors[value].addy;
-	if ((floors[value].pos.y > 8.f) || (floors[value].pos.y < 0.f)) {
+	if ((floors[value].pos.y > 8.f) || (floors[value].pos.y < -0.125f)) {
 		floors[value].addy *= -1;
 	}
 	glutTimerFunc(10, move_floor, value);
+	glutPostRedisplay();
+}
+void check_collision(int value) {
+	for (int i = 0; i < Button_count; ++i) {
+		if (!button[i].push) {
+			if ((camera_pos.x >= button[i].pos.x - button[i].scale.x) && (camera_pos.x <= button[i].pos.x + button[i].scale.x)) {
+				if ((camera_pos.z >= button[i].pos.z - button[i].scale.z) && (camera_pos.z <= button[i].pos.z + button[i].scale.z)) {
+					if ((camera_pos.y - 1.f <= button[i].pos.y + button[i].scale.y) && (camera_pos.y - 1.f >= button[i].pos.y)) {
+						button[i].push = true;
+						clear_wall[i].Set_alpha(0.44f, 0.77f, 0.92f, 0.0f);
+						button[i].pos.y -= button[i].scale.y / 2;
+					}
+				}
+			}			
+		}
+	}
+
+	glutTimerFunc(10, check_collision, value);
 	glutPostRedisplay();
 }
