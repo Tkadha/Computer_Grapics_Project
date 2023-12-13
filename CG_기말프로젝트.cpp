@@ -35,6 +35,8 @@ glm::vec3 set_dir(float yaw, float pitch);
 void move(int);
 void move_floor(int);
 void button_collision(int);
+void drop(int);
+
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
@@ -313,11 +315,16 @@ Button button[Button_count];
 
 
 
+// 준하
+
+int UD;
+int LR;
+
+
+float dropspeed = -0.003f;
 
 
 
-
-glm::vec3 head_angle;
 
 // 태경
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
@@ -336,9 +343,6 @@ bool firstMouse = true;
 float lastX = 400.0f;
 float lastY = 300.0f;
 
-
-int UD;
-int LR;
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
@@ -359,7 +363,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	{
 		light_color = { 0.5f,0.5f,0.5f };
 		light_pos = { 0.f,9.5f,0.f };
-		camera_pos = { -4.5f, 1.f, -4.5f };
+		camera_pos = { -4.5f, 9.f, -4.5f };
 	}
 
 	InitBuffer();
@@ -367,6 +371,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutTimerFunc(10, move, 0);
 	glutTimerFunc(10, move_floor, 1);
 	glutTimerFunc(10, button_collision, 0);
+	glutTimerFunc(10, drop, 0);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
@@ -408,7 +413,6 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glm::mat4 view = glm::mat4(1.0f);
 	//std::cout << cameraPos.x << '\n';
 	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
-	view = glm::rotate(view, glm::radians(head_angle.y), glm::vec3(0.f, 1.f, 0.f));
 	glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
 
 
@@ -804,8 +808,11 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y)
 
 void move(int value) {
 
+
 	camera_pos.x += cameraFront.x * speed * UD;
 	camera_pos.z += cameraFront.z * speed * UD;
+
+
 	if (LR == -1) {
 		glm::vec3 dir = set_dir(yaw - 90, pitch);
 		camera_pos.x += dir.x * speed * 0.7f;
@@ -843,5 +850,31 @@ void button_collision(int value) {
 		}
 	}
 	glutTimerFunc(10, button_collision, value);
+	glutPostRedisplay();
+}
+void drop(int value) {
+	bool contact = false;
+	for (int i = 0; i < Floor_count; ++i) {
+		if ((camera_pos.x-0.001f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_pos.x + 0.001f <= floors[i].pos.x + floors[i].scale.x / 2)) {
+			if ((camera_pos.z - 0.001f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_pos.z + 0.001f <= floors[i].pos.z + floors[i].scale.z / 2)) {
+				if ((camera_pos.y - 1.f <= floors[i].pos.y + floors[i].scale.y) && (camera_pos.y - 1.f >= floors[i].pos.y)) {
+					camera_pos.y = floors[i].pos.y + floors[i].scale.y + 1.f;
+					contact = true;
+					dropspeed = -0.003f;
+				}
+			}
+		}
+	}
+	if (!contact) {
+		if (camera_pos.y > 1.f) {
+			camera_pos.y += dropspeed;
+			dropspeed += -0.003f;
+		}
+		else {
+			camera_pos.y = 1.f;
+			dropspeed = -0.003f;
+		}
+	}
+	glutTimerFunc(10, drop, value);
 	glutPostRedisplay();
 }
