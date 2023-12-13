@@ -14,7 +14,7 @@
 
 #define Width 1200
 #define Height 800
-#define Wall_count 2
+#define Wall_count 3
 #define Clear_Wall_count 2
 #define Floor_count 2
 
@@ -302,7 +302,7 @@ glm::vec3 head_angle;
 
 // 태경
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
-float speed = 0.03f;		// 주인공 이동속도
+float speed = 0.04f;		// 주인공 이동속도
 	
 	//gpt는 신이야
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸려고 추가
@@ -602,6 +602,9 @@ void InitBuffer() {
 		walls[1].pos = { -3.75f,0.f,-2.5f };
 		walls[1].scale = { 2.5f, 2.5f, 0.125f };
 
+		walls[2].pos = { 0.f,0.f, -3.75f };
+		walls[2].scale = { 0.125f, 10.f, 2.5f };
+
 	}
 	for (int i = 0; i < Floor_count; ++i) {
 		floors[i].Load_Obj("cube_floor.obj");
@@ -611,9 +614,12 @@ void InitBuffer() {
 	{
 		floors[0].pos = { -3.75f,2.5f - 0.125f,-3.75f - (0.125f / 2) };
 		floors[0].scale = { 2.5f, 0.125f, 2.5f };
-		floors[1].pos = { -3.75f, 0.125f, 3.75f };
+
+		//움직이는 발판
+		floors[1].pos = { -3.75f, 8.f, 3.75f };
 		floors[1].scale = { 2.5f, 0.125f, 2.5f };
-		floors[1].addy = 0.01f;
+		floors[1].addy = -0.01f;
+
 	}
 	cube.Load_Obj("cube_floor.obj");
 	cube.Set_color(1.f, 1.f, 1.f);
@@ -762,7 +768,7 @@ void move(int value) {
 }
 void move_floor(int value) {
 	floors[value].pos.y += floors[value].addy;
-	if ((floors[value].pos.y > 5.f) || (floors[value].pos.y < 0.f)) {
+	if ((floors[value].pos.y > 8.f) || (floors[value].pos.y < 0.f)) {
 		floors[value].addy *= -1;
 	}
 	glutTimerFunc(10, move_floor, value);
