@@ -14,10 +14,10 @@
 
 #define Width 1200
 #define Height 800
-#define Wall_count 2
-#define Clear_Wall_count 2
-#define Floor_count 4
-#define Button_count 2
+#define Wall_count 5
+#define Clear_Wall_count 3
+#define Floor_count 6
+#define Button_count 3
 
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -329,7 +329,7 @@ float dropspeed = -0.003f;
 
 // 태경
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
-float speed = 0.04f;		// 주인공 이동속도
+float speed = 0.05f;		// 주인공 이동속도
 	
 	//gpt는 신이야
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸려고 추가
@@ -625,6 +625,9 @@ void InitBuffer() {
 
 		clear_wall[1].pos = { -2.5f-0.00001f , 0.f, -2.5f + 0.001f };
 		clear_wall[1].scale = { 5.f, 11.f, 0.125f };
+
+		clear_wall[2].pos = { -3.75f-0.000001f,8.f + 0.000001f, 0.f };
+		clear_wall[2].scale = { 2.5f, 2.f, 0.125f };
 	}
 
 
@@ -639,6 +642,15 @@ void InitBuffer() {
 
 		walls[1].pos = { 0.f,0.f, -3.75f };
 		walls[1].scale = { 0.125f, 10.f, 2.5f };
+
+		walls[2].pos = { 0.f,0.f, -1.25f };
+		walls[2].scale = { 0.125f, 10.f, 2.5f };
+
+		walls[3].pos = { -1.25f,0.f, 0.f };
+		walls[3].scale = { 2.5f, 10.f, 0.125f };
+
+		walls[4].pos = { -3.75f,0.f, 0.f };
+		walls[4].scale = { 2.5f, 8.f, 0.125f };
 
 	}
 
@@ -662,6 +674,12 @@ void InitBuffer() {
 
 		floors[3].pos = { -3.75f, 8.f - 0.125f, -3.75f - (0.125f / 2) };
 		floors[3].scale = { 2.5f, 0.125f, 2.5f };
+
+		floors[4].pos = { -3.75f, 8.f, 1.25f };
+		floors[4].scale = { 2.5f, 0.125f, 2.5f };
+
+		floors[5].pos = { -3.25f, 5.f, -1.25f };
+		floors[5].scale = { 3.5f, 0.125f, 2.5f };
 	}
 
 	for (int i = 0; i < Button_count; ++i) {
@@ -677,6 +695,10 @@ void InitBuffer() {
 		button[1].pos = { -3.75f - 0.625f ,8.f, -3.75f + 0.625f };
 		button[1].scale = { 0.75f, 0.125f, 0.75f };
 		button[1].push = false;
+
+		button[2].pos = { -3.75f, 0.f, -1.25f };
+		button[2].scale = { 0.75f, 0.125f, 0.75f };
+		button[2].push = false;
 	}
 
 
@@ -851,6 +873,14 @@ void button_collision(int value) {
 					}
 				}
 			}			
+		}	
+		else if (button[i].push) {
+			if ((camera_pos.x <= button[i].pos.x - button[i].scale.x) || (camera_pos.x >= button[i].pos.x + button[i].scale.x) || (camera_pos.z <= button[i].pos.z - button[i].scale.z) || (camera_pos.z >= button[i].pos.z + button[i].scale.z)) {
+
+				button[i].push = false;
+				clear_wall[i].see = true;
+				button[i].pos.y += button[i].scale.y / 2;
+			}
 		}
 	}
 	glutTimerFunc(10, button_collision, value);
