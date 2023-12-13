@@ -14,7 +14,7 @@ uniform sampler2D outTexture;
 
 void main(void)
 {
-	float ambientLight = 0.1;
+	float ambientLight = 0.5;
 	vec3 ambient = ambientLight * lightColor;
 
 	vec3 normalVector = normalize(Normal);
