@@ -16,7 +16,7 @@
 #define Height 800
 #define Wall_count 2
 #define Clear_Wall_count 2
-#define Floor_count 1
+#define Floor_count 2
 
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -32,7 +32,7 @@ void Motion(int x, int y);
 void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
 glm::vec3 set_dir(float yaw, float pitch);
 void move(int);
-
+void move_floor(int);
 
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
@@ -240,6 +240,7 @@ class Floor :public Shape {
 public:
 	glm::vec3 pos;
 	glm::vec3 scale;
+	float addy;
 	void translate() {
 		glm::mat4 trans = glm::mat4(1.0f);
 		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
@@ -345,6 +346,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	InitBuffer();
 
 	glutTimerFunc(10, move, 0);
+	glutTimerFunc(10, move_floor, 1);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
@@ -609,7 +611,9 @@ void InitBuffer() {
 	{
 		floors[0].pos = { -3.75f,2.5f - 0.125f,-3.75f - (0.125f / 2) };
 		floors[0].scale = { 2.5f, 0.125f, 2.5f };
-
+		floors[1].pos = { -3.75f, 0.125f, 3.75f };
+		floors[1].scale = { 2.5f, 0.125f, 2.5f };
+		floors[1].addy = 0.01f;
 	}
 	cube.Load_Obj("cube_floor.obj");
 	cube.Set_color(1.f, 1.f, 1.f);
@@ -754,5 +758,13 @@ void move(int value) {
 	}
 
 	glutTimerFunc(10, move, value);
+	glutPostRedisplay();
+}
+void move_floor(int value) {
+	floors[value].pos.y += floors[value].addy;
+	if ((floors[value].pos.y > 5.f) || (floors[value].pos.y < 0.f)) {
+		floors[value].addy *= -1;
+	}
+	glutTimerFunc(10, move_floor, value);
 	glutPostRedisplay();
 }
