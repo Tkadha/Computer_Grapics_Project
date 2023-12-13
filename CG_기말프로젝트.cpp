@@ -256,6 +256,7 @@ class Wall : public Shape {
 public:
 	glm::vec3 pos;
 	glm::vec3 scale;
+	bool see;
 	void translate() {
 		glm::mat4 trans = glm::mat4(1.0f);
 		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
@@ -488,8 +489,10 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (int i = 0; i < Clear_Wall_count; ++i) {
-		clear_wall[i].translate();
-		clear_wall[i].Draw_shape();
+		if (clear_wall[i].see) {
+			clear_wall[i].translate();
+			clear_wall[i].Draw_shape();
+		}
 	}
 	glDisable(GL_BLEND);
 	//----------------------------------------------------------------------
@@ -614,6 +617,7 @@ void InitBuffer() {
 		clear_wall[i].Load_Obj("cube_floor.obj");
 		clear_wall[i].Set_alpha(0.44f, 0.77f, 0.92f, 0.4f);
 		clear_wall[i].Create_texture("./resource/white.png");
+		clear_wall[i].see = true;
 	}
 	{
 		clear_wall[0].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
@@ -842,7 +846,7 @@ void button_collision(int value) {
 				if ((camera_pos.z >= button[i].pos.z - button[i].scale.z) && (camera_pos.z <= button[i].pos.z + button[i].scale.z)) {
 					if ((camera_pos.y - 1.f <= button[i].pos.y + button[i].scale.y) && (camera_pos.y - 1.f >= button[i].pos.y)) {
 						button[i].push = true;
-						clear_wall[i].Set_alpha(0.44f, 0.77f, 0.92f, 0.0f);
+						clear_wall[i].see = false;
 						button[i].pos.y -= button[i].scale.y / 2;
 					}
 				}
@@ -855,8 +859,8 @@ void button_collision(int value) {
 void drop(int value) {
 	bool contact = false;
 	for (int i = 0; i < Floor_count; ++i) {
-		if ((camera_pos.x-0.001f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_pos.x + 0.001f <= floors[i].pos.x + floors[i].scale.x / 2)) {
-			if ((camera_pos.z - 0.001f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_pos.z + 0.001f <= floors[i].pos.z + floors[i].scale.z / 2)) {
+		if ((camera_pos.x + 0.2f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_pos.x - 0.2f <= floors[i].pos.x + floors[i].scale.x / 2)) {
+			if ((camera_pos.z + 0.2f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_pos.z - 0.2f <= floors[i].pos.z + floors[i].scale.z / 2)) {
 				if ((camera_pos.y - 1.f <= floors[i].pos.y + floors[i].scale.y) && (camera_pos.y - 1.f >= floors[i].pos.y)) {
 					camera_pos.y = floors[i].pos.y + floors[i].scale.y + 1.f;
 					contact = true;
