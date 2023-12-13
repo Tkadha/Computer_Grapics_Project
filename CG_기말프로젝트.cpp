@@ -23,10 +23,14 @@ GLvoid Reshape(int w, int h);
 char* filetobuf(const char* file);
 void InitBuffer();
 GLvoid Keyboard(unsigned char key, int x, int y);
+GLvoid UpKeyboard(unsigned char key, int x, int y);
 void Mouse(int button, int state, int x, int y);
 void Motion(int x, int y);
 void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
 glm::vec3 set_dir(float yaw, float pitch);
+void move(int);
+
+
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
@@ -239,7 +243,7 @@ glm::vec3 head_angle;
 
 // 태경
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
-float speed = 0.05f;		// 주인공 이동속도
+float speed = 0.03f;		// 주인공 이동속도
 	
 	//gpt는 신이야
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸려고 추가
@@ -255,7 +259,8 @@ float lastX = 400.0f;
 float lastY = 300.0f;
 
 
-
+int UD;
+int LR;
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 {
@@ -280,10 +285,13 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	}
 
 	InitBuffer();
+
+	glutTimerFunc(10, move, 0);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
+	glutKeyboardUpFunc(UpKeyboard);
 	glutMouseFunc(Mouse);
 	glutPassiveMotionFunc(Motion);	// 마우스 이동 항상 입력받기
 	glutMainLoop();
@@ -471,34 +479,51 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		exit(0);
 		break;
 	case 's':
-		camera_pos.x -= cameraFront.x * speed;
-		camera_pos.z -= cameraFront.z * speed;
+		/*camera_pos.x -= cameraFront.x * speed;
+		camera_pos.z -= cameraFront.z * speed;*/
+		if (UD == 0)	UD = -1;
 		break;
 	case 'w':
-		camera_pos.x += cameraFront.x * speed;
-		camera_pos.z += cameraFront.z * speed;
+		/*camera_pos.x += cameraFront.x * speed;
+		camera_pos.z += cameraFront.z * speed;*/
+		if (UD == 0)	UD = 1;
 		break;
 	case 'a':
-	{
+	/*{
 		glm::vec3 dir = set_dir(yaw - 90, pitch);
 		camera_pos.x += dir.x * speed;
 		camera_pos.z += dir.z * speed;
-	}
+	}*/
+		if (LR == 0)	LR = -1;
 		break;
 	case 'd':
-	{
+	/*{
 		glm::vec3 dir = set_dir(yaw + 90, pitch);
 		camera_pos.x += dir.x * speed;
 		camera_pos.z += dir.z * speed;
-	}
-		break;
-	case 'y':
-		head_angle.y += 1.f;
+	}*/
+		if (LR == 0)	LR = 1;
 		break;
 	}
 	glutPostRedisplay();
 }
-
+GLvoid UpKeyboard(unsigned char key, int x, int y) {
+	switch (key) {
+	case 'w':
+		if (UD == 1)	UD = 0;
+		break;
+	case 's':
+		if (UD == -1)	UD = 0;
+		break;
+	case 'a':
+		if (LR == -1)	LR = 0;
+		break;
+	case 'd':	
+		if (LR == 1)	LR = 0;
+		break;
+	}
+	glutPostRedisplay();
+}
 
 void Mouse(int button, int state, int x, int y)
 {
@@ -565,4 +590,23 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y)
 {
 	*gl_x = (win_x - window_w / 2) / (window_w / 2);
 	*gl_y = -(win_y - window_h / 2) / (window_h / 2);
+}
+
+void move(int value) {
+
+	camera_pos.x += cameraFront.x * speed * UD;
+	camera_pos.z += cameraFront.z * speed * UD;
+	if (LR == -1) {
+		glm::vec3 dir = set_dir(yaw - 90, pitch);
+		camera_pos.x += dir.x * speed * 0.5f;
+		camera_pos.z += dir.z * speed * 0.5f;
+	}
+	else if (LR == 1) {
+		glm::vec3 dir = set_dir(yaw + 90, pitch);
+		camera_pos.x += dir.x * speed * 0.5f;
+		camera_pos.z += dir.z * speed * 0.5f;
+	}
+
+	glutTimerFunc(10, move, value);
+	glutPostRedisplay();
 }
