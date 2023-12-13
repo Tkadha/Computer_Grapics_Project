@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <random>
 #include <fstream>
+#include <algorithm>
 #include "stb_image.h"
 
 #define Width 1200
@@ -36,6 +37,8 @@ void move(int);
 void move_floor(int);
 void button_collision(int);
 void drop(int);
+void bullet_move(int);
+void portal_update(int);
 bool collision(glm::vec3 camera_positon);
 
 
@@ -48,6 +51,8 @@ GLuint vao;
 std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_real_distribution<> random_color(0.1, 1);
+
+const float tall = 0.75f;
 
 class Shape {
 public:
@@ -270,6 +275,8 @@ class Cube : public Shape {
 public:
 	glm::vec3 pos;
 	glm::vec3 scale;
+
+	bool grab;
 	void translate() {
 		glm::mat4 trans = glm::mat4(1.0f);
 		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
@@ -305,13 +312,125 @@ public:
 		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 	}
 };
+class Bullet : public Shape {
+public:
+	glm::vec3 pos;
+	glm::vec3 scale;
+	glm::vec3 dir;
+	bool render = false;
+	const float speed = 0.1f;
+
+	void update() {
+		pos += dir * speed;
+	}
+
+	bool collision_check(glm::vec3 o_pos, glm::vec3 o_scale) {
+		bool xCollision = std::abs(pos.x - o_pos.x) * 2 < (scale.x + o_scale.x);
+		bool yCollision = std::abs(pos.y - o_pos.y) * 2 < (scale.y + o_scale.y);
+		bool zCollision = std::abs(pos.z - o_pos.z) * 2 < (scale.z + o_scale.z);
+
+		return xCollision && yCollision && zCollision;
+	}
+
+	glm::vec3 collision_dir(glm::vec3 o_pos, glm::vec3 o_scale) {
+		glm::vec3 dir{ 0,0,0 };
+		float x = (scale.x + o_scale.x) - std::abs(pos.x - o_pos.x) * 2;
+		float y = (scale.y + o_scale.y) - std::abs(pos.y - o_pos.y) * 2;
+		float z = (scale.z + o_scale.z) - std::abs(pos.z - o_pos.z) * 2;
+		//if (std::min(std::min(x, y),z) == x) {
+		if (std::min(x, z) == x) {
+			if (pos.x > o_pos.x)
+				dir.x = 0.5;
+			else
+				dir.x = -0.5;
+		}/*
+		else if (std::min(std::min(x, y), z) == y) {
+			if (pos.y > o_pos.y)
+				dir.y = 1;
+			else
+				dir.y = -1;
+		}*/
+		//else if (std::min(std::min(x, y), z) == z) {
+		else if (std::min(x, z) == z) {
+			if (pos.z > o_pos.z)
+				dir.z = 0.5;
+			else
+				dir.z = -0.5;
+		}
+
+		return dir;
+	}
+
+	void translate() {
+		glm::mat4 trans = glm::mat4(1.0f);
+		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
+		trans = glm::translate(trans, glm::vec3(pos));
+		trans = glm::scale(trans, glm::vec3(scale));
+		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+	}
+};
+
+class Portal : public Shape {
+public:
+	glm::vec3 pos;
+	glm::vec3 scale;
+	glm::vec3 dir;
+	bool render = false;
+
+	bool pair = false;
+	glm::vec3 pair_portal_pos, pair_portal_dir;
+
+	void teleport(glm::vec3 *pos, float *yaw) {
+		if (pair) {
+			*pos = pair_portal_pos + pair_portal_dir;
+			(*pos).y += tall / 2;
+			/*if (pair_portal_dir.x > 0) {
+				*yaw = 0;
+			}
+			else if (pair_portal_dir.x < 0) {
+				*yaw = 180;
+			}
+			else if (pair_portal_dir.z > 0) {
+				*yaw = 90;
+			}
+			else if (pair_portal_dir.z < 0) {
+				*yaw = 270;
+			}*/
+			if ((dir.x == pair_portal_dir.x) && (dir.z == pair_portal_dir.z))
+				*yaw += 180;
+			else if (dir.x == pair_portal_dir.z)
+				*yaw += 270;
+			else if (-dir.x == pair_portal_dir.z)
+				*yaw -= 270;
+		}
+			
+	}
+
+	bool collision_check(glm::vec3 p) {
+		bool xCollision = std::abs(pos.x - p.x) * 2 < (scale.x + 0.25f);
+		bool yCollision = std::abs(pos.y - p.y) * 2 < 1.0f;
+		bool zCollision = std::abs(pos.z - p.z) * 2 < (scale.z + 0.25f);
+
+		return xCollision && yCollision && zCollision;
+	}
+
+	void translate() {
+		glm::mat4 trans = glm::mat4(1.0f);
+		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
+		trans = glm::translate(trans, glm::vec3(pos));
+		trans = glm::scale(trans, glm::vec3(scale));
+		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+	}
+
+};
+
 glm::vec3 light_pos;
 glm::vec3 light_color;
 glm::vec3 camera_pos;
 
 // 기본 맵
 Floor ground[10][10];
-Floor ceiling;
+Floor ceiling[10][10];        // 천장
 Wall map_wall[4][10][10];
 // 벽들
 Wall clear_wall[Clear_Wall_count];
@@ -339,8 +458,12 @@ float dropspeed = -0.003f;
 
 
 
-
 // 태경
+
+// 포탈에서 나가는 구체(임시)
+Bullet blue_bullet, red_bullet;
+Portal blue, red;
+
 GLfloat window_w = Width, window_h = Height;	// 마우스 입력 좌표 변환할 때 창 크기에 따라 하기 위해서 쓰임 
 float speed = 0.05f;		// 주인공 이동속도
 	
@@ -350,12 +473,14 @@ glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// 일인칭 카메라 방향 바꾸
 float cameraSpeed = 0.05f; // 조절 가능한 카메라 이동 속도
 float sensitivity = 0.05f; // 조절 가능한 마우스 감도
 
-float yaw = 30.0f; // 카메라의 초기 yaw 각도
+float yaw = 10.0f; // 카메라의 초기 yaw 각도
 float pitch = 10.0f;  // 카메라의 초기 pitch 각도
 
 bool firstMouse = true;
 float lastX = 400.0f;
 float lastY = 300.0f;
+
+// 선을 그릴 때 사용할 점의 좌표
 
 
 void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
@@ -386,6 +511,8 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutTimerFunc(10, move_floor, 1);
 	glutTimerFunc(10, button_collision, 0);
 	glutTimerFunc(10, drop, 0);
+	glutTimerFunc(10, bullet_move, 0);
+	glutTimerFunc(10, portal_update, 0);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
@@ -441,8 +568,13 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
 	glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 	//----------------------------기본 맵-----------------------------------
-	ceiling.translate();
-	ceiling.Draw_shape();
+	for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			if (i == 0 && j == 9) continue;
+			ceiling[i][j].translate();
+			ceiling[i][j].Draw_shape();
+		}
+	}
 	for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 10; ++j) {
 			trans = glm::mat4(1.0f);
@@ -495,6 +627,28 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	}
 	//----------------------------------------------------------------------
 
+	//-------------------------------총알?-----------------------------------
+	if (blue_bullet.render) {
+		blue_bullet.translate();
+		blue_bullet.Draw_shape();
+	}
+	if (red_bullet.render) {
+		red_bullet.translate();
+		red_bullet.Draw_shape();
+	}
+	//----------------------------------------------------------------------
+
+	//-------------------------------포탈-----------------------------------
+	if (blue.render) {
+		blue.translate();
+		blue.Draw_shape();
+	}
+
+	if (red.render) {
+		red.translate();
+		red.Draw_shape();
+	}
+	//----------------------------------------------------------------------
 
 	//-------------------------------반투명벽-------------------------------
 	glDisable(GL_CULL_FACE);
@@ -512,6 +666,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	glass.translate();
 	glass.Draw_shape();
 	//----------------------------------------------------------------------
+
 
 	glDisable(GL_BLEND);
 	glutSwapBuffers(); // 화면에 출력하기
@@ -599,33 +754,42 @@ void InitBuffer() {
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	{
-		ceiling.Load_Obj("cube_floor.obj");
-		ceiling.Set_color(1.f, 1.f, 1.f);
-		ceiling.Create_texture("./resource/white.png");
-		ceiling.pos = { 0.f,10.f,0.f };
-		ceiling.scale = { 10.f, 0.5f, 10.f };
+		for (int i = 0; i < 10; ++i) {
+			for (int j = 0; j < 10; ++j) {
+				ceiling[i][j].Load_Obj("cube_floor.obj");
+				ceiling[i][j].Set_color(1.f, 1.f, 1.f);
+				ceiling[i][j].Create_texture("./resource/floor_1.jpg");
+				ceiling[i][j].pos = { 0.5f + 1.f * (j - 5),10.f,0.5f + 1.f * (i - 5) };
+				ceiling[i][j].scale = { 1.f,1.f,1.f };
+			}
+		}
 		for (int i = 0; i < 10; ++i) {
 			for (int j = 0; j < 10; ++j) {
 				ground[i][j].Load_Obj("cube_floor.obj");
 				ground[i][j].Set_color(1.f, 1.f, 1.f);
 				ground[i][j].Create_texture("./resource/floor_1.jpg");
 				ground[i][j].pos = { 0.5f + 1.f * (j - 5),-1.f,0.5f + 1.f * (i - 5) };
+				ground[i][j].scale = { 1.f,1.f,1.f };
 				map_wall[0][i][j].Load_Obj("cube_floor.obj");
 				map_wall[0][i][j].Set_color(1.f, 1.f, 1.f);
 				map_wall[0][i][j].Create_texture("./resource/wall_2.jpg");
 				map_wall[0][i][j].pos = { -5.5f, i * 1.f, 0.5f + 1.f * (j - 5) };
+				map_wall[0][i][j].scale = { 1.f,1.f,1.f };
 				map_wall[1][i][j].Load_Obj("cube_floor.obj");
 				map_wall[1][i][j].Set_color(1.f, 1.f, 1.f);
 				map_wall[1][i][j].Create_texture("./resource/wall_2.jpg");
 				map_wall[1][i][j].pos = { 5.5f, i * 1.f, 0.5f + 1.f * (j - 5) };
+				map_wall[1][i][j].scale = { 1.f,1.f,1.f };
 				map_wall[2][i][j].Load_Obj("cube_floor.obj");
 				map_wall[2][i][j].Set_color(1.f, 1.f, 1.f);
 				map_wall[2][i][j].Create_texture("./resource/wall_2.jpg");
 				map_wall[2][i][j].pos = { 0.5f + 1.f * (j - 5), i * 1.f, -5.5f };
+				map_wall[2][i][j].scale = { 1.f,1.f,1.f };
 				map_wall[3][i][j].Load_Obj("cube_floor.obj");
 				map_wall[3][i][j].Set_color(1.f, 1.f, 1.f);
 				map_wall[3][i][j].Create_texture("./resource/wall_2.jpg");
 				map_wall[3][i][j].pos = { 0.5f + 1.f * (j - 5), i * 1.f, 5.5f };
+				map_wall[3][i][j].scale = { 1.f,1.f,1.f };
 			}
 		}
 	}
@@ -644,8 +808,8 @@ void InitBuffer() {
 		clear_wall[1].pos = { -2.5f-0.00001f , 8.f, -2.5f + 0.001f };
 		clear_wall[1].scale = { 5.f, 2.f, 0.125f };
 
-		clear_wall[2].pos = { -3.75f-0.000001f,8.f + 0.000001f, 0.f };
-		clear_wall[2].scale = { 2.5f, 2.f, 0.125f };
+		//clear_wall[2].pos = { -3.75f-0.000001f,8.f + 0.000001f, 0.f };
+		//clear_wall[2].scale = { 2.5f, 2.f, 0.125f };
 	}
 
 
@@ -757,6 +921,30 @@ void InitBuffer() {
 	cube.Create_texture("./resource/cube_face.png");
 	cube.pos = { -4.f,0.f,-4.f };
 	cube.scale = { 0.5f, 0.5f, 0.5f };
+
+
+	blue_bullet.Load_Obj("cube_floor.obj");
+	blue_bullet.Set_alpha(1.f, 1.f, 1.f, 0.5f);
+	blue_bullet.Create_texture("./resource/white.png");
+	blue_bullet.scale = { 0.05f, 0.05f, 0.05f };
+
+	red_bullet.Load_Obj("cube_floor.obj");
+	red_bullet.Set_alpha(1.f, 1.f, 1.f, 0.5f);
+	red_bullet.Create_texture("./resource/white.png");
+	red_bullet.scale = { 0.05f, 0.05f, 0.05f };
+
+	blue.Load_Obj("cube_floor.obj");
+	blue.Set_alpha(1.f, 1.f, 1.f, 0.5f);
+	blue.Create_texture("./resource/white.png");
+	blue.scale = { 0.5f, 0.5f, 0.5f };
+	blue.render = false;
+
+	red.Load_Obj("cube_floor.obj");
+	red.Set_alpha(1.f, 1.f, 1.f, 0.5f);
+	red.Create_texture("./resource/white.png");
+	red.scale = { 0.5f, 0.5f, 0.5f };
+	red.render = false;
+
 }
 GLvoid Keyboard(unsigned char key, int x, int y)
 {
@@ -766,30 +954,19 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 		exit(0);
 		break;
 	case 's':
-		/*camera_pos.x -= cameraFront.x * speed;
-		camera_pos.z -= cameraFront.z * speed;*/
 		if (UD == 0)	UD = -1;
 		break;
 	case 'w':
-		/*camera_pos.x += cameraFront.x * speed;
-		camera_pos.z += cameraFront.z * speed;*/
 		if (UD == 0)	UD = 1;
 		break;
 	case 'a':
-	/*{
-		glm::vec3 dir = set_dir(yaw - 90, pitch);
-		camera_pos.x += dir.x * speed;
-		camera_pos.z += dir.z * speed;
-	}*/
 		if (LR == 0)	LR = -1;
 		break;
 	case 'd':
-	/*{
-		glm::vec3 dir = set_dir(yaw + 90, pitch);
-		camera_pos.x += dir.x * speed;
-		camera_pos.z += dir.z * speed;
-	}*/
 		if (LR == 0)	LR = 1;
+		break;
+
+	case 'f':
 		break;
 	}
 	glutPostRedisplay();
@@ -815,11 +992,16 @@ GLvoid UpKeyboard(unsigned char key, int x, int y) {
 void Mouse(int button, int state, int x, int y)
 {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-		//leftclick = true;
+		blue_bullet.dir = cameraFront;
+		blue_bullet.pos = camera_pos + cameraFront * 1.0f;		
+		blue_bullet.render = true;
 
+		std::cout << camera_pos.x << std::endl;
 	}
-	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-		//leftclick = false;
+	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+		red_bullet.dir = cameraFront;
+		red_bullet.pos = camera_pos + cameraFront * 1.0f;
+		red_bullet.render = true;
 	}
 	glutPostRedisplay();
 }
@@ -879,6 +1061,124 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y)
 	*gl_y = -(win_y - window_h / 2) / (window_h / 2);
 }
 
+void bullet_move(int value) {
+	blue_bullet.update();
+	red_bullet.update();
+
+	bool blue_collide = false, red_collide = false;
+	for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			if (blue_bullet.collision_check(ground[i][j].pos, ground[i][j].scale)) {
+				blue.dir = blue_bullet.collision_dir(ground[i][j].pos, ground[i][j].scale);
+				blue_collide = true;
+			}
+			else if (red_bullet.collision_check(ground[i][j].pos, ground[i][j].scale)) {
+				red.dir = red_bullet.collision_dir(ground[i][j].pos, ground[i][j].scale);
+				red_collide = true;
+			}
+		}
+	}
+	for (int i = 0; i < 10; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			if (i == 0 && j == 9) continue;
+			if ( blue_bullet.collision_check(ceiling[i][j].pos, ceiling[i][j].scale)) {
+				blue.dir = blue_bullet.collision_dir(ceiling[i][j].pos, ceiling[i][j].scale);
+				blue_collide = true;
+			}
+			if (red_bullet.collision_check(ceiling[i][j].pos, ceiling[i][j].scale)) {
+				red.dir = red_bullet.collision_dir(ceiling[i][j].pos, ceiling[i][j].scale);
+				red_collide = true;
+			}
+		}
+	}
+
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 10; ++j) {
+			for (int k = 0; k < 10; ++k) {
+				if (blue_bullet.collision_check(map_wall[i][j][k].pos, map_wall[i][j][k].scale)) {
+					blue.dir = blue_bullet.collision_dir(map_wall[i][j][k].pos, map_wall[i][j][k].scale);
+					blue_collide = true;
+				}
+				if (red_bullet.collision_check(map_wall[i][j][k].pos, map_wall[i][j][k].scale)) {
+					red.dir = red_bullet.collision_dir(map_wall[i][j][k].pos, map_wall[i][j][k].scale);
+					red_collide = true;
+				}
+			}
+		}
+	}
+
+	/*for (int i = 0; i < Clear_Wall_count; ++i) {
+		if (blue_bullet.collision_check(clear_wall[i].pos, clear_wall[i].scale)) {
+			blue_collide = true;
+		}
+		if (red_bullet.collision_check(clear_wall[i].pos, clear_wall[i].scale)) {
+			red_collide = true;
+		}
+	}*/
+
+	for (int i = 0; i < Wall_count; ++i) {
+		if (blue_bullet.collision_check(walls[i].pos, walls[i].scale)) {
+			blue.dir = blue_bullet.collision_dir(walls[i].pos, walls[i].scale);
+			blue_collide = true;
+		}
+		if (red_bullet.collision_check(walls[i].pos, walls[i].scale)) {
+			red.dir = red_bullet.collision_dir(walls[i].pos, walls[i].scale);
+			red_collide = true;
+		}
+	}
+	for (int i = 0; i < Floor_count; ++i) {
+		if (blue_bullet.collision_check(floors[i].pos, floors[i].scale)) {
+			blue.dir = blue_bullet.collision_dir(floors[i].pos, floors[i].scale);
+			blue_collide = true;
+		}
+		if (red_bullet.collision_check(floors[i].pos, floors[i].scale)) {
+			red.dir = red_bullet.collision_dir(floors[i].pos, floors[i].scale);
+			red_collide = true;
+		}
+	}
+
+	//std::cout << collide << std::endl;
+	if (blue_collide) {
+		if (blue_bullet.render)
+			std::cout << "blue collide\n";
+		blue_bullet.render = false;
+		blue_bullet.dir = { 0,0,0 };
+
+		blue.pos = blue_bullet.pos;
+		blue.render = true;
+	}
+	if (red_collide) {
+		if (red_bullet.render)
+			std::cout << "red collide\n";
+		red_bullet.render = false;
+		red_bullet.dir = { 0,0,0 };
+
+		red.pos = red_bullet.pos;
+		red.render = true;
+	}
+
+	glutTimerFunc(10, bullet_move, value);
+	glutPostRedisplay();
+}
+
+void portal_update(int value) {
+	if (blue.render && red.render) {
+		blue.pair = true;
+		blue.pair_portal_pos = red.pos;
+		blue.pair_portal_dir = red.dir;
+
+		red.pair = true;
+		red.pair_portal_pos = blue.pos;
+		red.pair_portal_dir = blue.dir;
+	}
+	else {
+		blue.pair = false;
+		red.pair = false;
+	}
+	glutTimerFunc(10, portal_update, value);
+	glutPostRedisplay();
+}
+
 void move(int value) {
 	if (!collision(camera_pos)) {
 		camera_pos.x += cameraFront.x * speed * UD;
@@ -894,9 +1194,23 @@ void move(int value) {
 			camera_pos.z += dir.z * speed * 0.7f;
 		}
 	}
+
+	if (blue.collision_check(camera_pos)) {
+		std::cout << "teleport\n";
+		blue.teleport(&camera_pos, &yaw);
+	}
+	else if (red.collision_check(camera_pos)) {
+		std::cout << "teleport\n";
+		red.teleport(&camera_pos, &yaw);
+	}
+
+	camera_pos.x = std::clamp(camera_pos.x, -4.8f, 4.8f);
+	camera_pos.z = std::clamp(camera_pos.z, -4.8f, 4.8f);
+
 	glutTimerFunc(10, move, value);
 	glutPostRedisplay();
 }
+
 void move_floor(int value) {
 	floors[value].pos.y += floors[value].addy;
 	if ((floors[value].pos.y > 8.f - 0.125f) || (floors[value].pos.y < 6.f-0.125f)) {
@@ -905,12 +1219,13 @@ void move_floor(int value) {
 	glutTimerFunc(10, move_floor, value);
 	glutPostRedisplay();
 }
+
 void button_collision(int value) {
 	for (int i = 0; i < Button_count; ++i) {
 		if (!button[i].push) {
 			if ((camera_pos.x >= button[i].pos.x - button[i].scale.x) && (camera_pos.x <= button[i].pos.x + button[i].scale.x)) {
 				if ((camera_pos.z >= button[i].pos.z - button[i].scale.z) && (camera_pos.z <= button[i].pos.z + button[i].scale.z)) {
-					if ((camera_pos.y - 1.f <= button[i].pos.y + button[i].scale.y) && (camera_pos.y - 1.f >= button[i].pos.y)) {
+					if ((camera_pos.y - tall <= button[i].pos.y + button[i].scale.y) && (camera_pos.y - tall >= button[i].pos.y)) {
 						button[i].push = true;
 						clear_wall[i].see = false;
 						button[i].pos.y -= button[i].scale.y / 2;
@@ -935,8 +1250,8 @@ void drop(int value) {
 	for (int i = 0; i < Floor_count; ++i) {
 		if ((camera_pos.x + 0.2f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_pos.x - 0.2f <= floors[i].pos.x + floors[i].scale.x / 2)) {
 			if ((camera_pos.z + 0.2f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_pos.z - 0.2f <= floors[i].pos.z + floors[i].scale.z / 2)) {
-				if ((camera_pos.y - 1.f <= floors[i].pos.y + floors[i].scale.y) && (camera_pos.y - 1.f >= floors[i].pos.y)) {
-					camera_pos.y = floors[i].pos.y + floors[i].scale.y + 1.f;
+				if ((camera_pos.y - tall <= floors[i].pos.y + floors[i].scale.y) && (camera_pos.y - tall >= floors[i].pos.y)) {
+					camera_pos.y = floors[i].pos.y + floors[i].scale.y + tall;
 					contact = true;
 					dropspeed = -0.003f;
 				}
@@ -947,7 +1262,7 @@ void drop(int value) {
 		for (int i = 0; i < Wall_count; ++i) {
 			if ((camera_pos.x + 0.2f >= walls[i].pos.x - walls[i].scale.x / 2) && (camera_pos.x - 0.2f <= walls[i].pos.x + walls[i].scale.x / 2)) {
 				if ((camera_pos.z + 0.2f >= walls[i].pos.z - walls[i].scale.z / 2) && (camera_pos.z - 0.2f <= walls[i].pos.z + walls[i].scale.z / 2)) {
-					if ((camera_pos.y - 1.f <= walls[i].pos.y + walls[i].scale.y) && (camera_pos.y - 1.f >= walls[i].pos.y)) {
+					if ((camera_pos.y - tall <= walls[i].pos.y + walls[i].scale.y) && (camera_pos.y - tall >= walls[i].pos.y)) {
 						camera_pos.y = walls[i].pos.y + walls[i].scale.y + 1.f;
 						contact = true;
 						dropspeed = -0.003f;
@@ -957,12 +1272,12 @@ void drop(int value) {
 		}
 	}
 	if (!contact) {
-		if (camera_pos.y > 1.f) {
+		if (camera_pos.y > tall) {
 			camera_pos.y += dropspeed;
 			dropspeed += -0.003f;
 		}
 		else {
-			camera_pos.y = 1.f;
+			camera_pos.y = tall;
 			dropspeed = -0.003f;
 		}
 	}
@@ -984,13 +1299,13 @@ bool collision(glm::vec3 camera_positon) {
 		camera_positon.z += dir.z * speed * 0.7f * 2;
 	}
 	// 충돌검사 충돌 하면 true
-
+	
 	for (int k = 0; k < 4; ++k) {
 		for (int i = 0; i < 10; ++i) {
 			for (int j = 0; j < 10; ++j) {
-				if ((camera_positon.x + 0.6f >= map_wall[k][i][j].pos.x - map_wall[k][i][j].scale.x / 2) && (camera_positon.x - 0.6f <= map_wall[k][i][j].pos.x + map_wall[k][i][j].scale.x / 2)) {
-					if ((camera_positon.z + 0.6f >= map_wall[k][i][j].pos.z - map_wall[k][i][j].scale.z / 2) && (camera_positon.z - 0.6f <= map_wall[k][i][j].pos.z + map_wall[k][i][j].scale.z / 2)) {
-						if ((camera_positon.y <= map_wall[k][i][j].pos.y + map_wall[k][i][j].scale.y) && (camera_positon.y >= map_wall[k][i][j].pos.y)) {
+				if ((camera_positon.x + 0.6f >= map_wall[k][i][j].pos.x) && (camera_positon.x - 0.6f <= map_wall[k][i][j].pos.x)) {
+					if ((camera_positon.z + 0.6f >= map_wall[k][i][j].pos.z ) && (camera_positon.z - 0.6f <= map_wall[k][i][j].pos.z)) {
+						if ((camera_positon.y <= map_wall[k][i][j].pos.y ) && (camera_positon.y >= map_wall[k][i][j].pos.y)) {
 							return true;
 						}
 					}
@@ -999,9 +1314,9 @@ bool collision(glm::vec3 camera_positon) {
 		}
 	}
 	for (int i = 0; i < Floor_count; ++i) {
-		if ((camera_positon.x + 0.3f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_positon.x - 0.3f <= floors[i].pos.x + floors[i].scale.x / 2)) {
-			if ((camera_positon.z + 0.3f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_positon.z - 0.3f <= floors[i].pos.z + floors[i].scale.z / 2)) {
-				if ((camera_positon.y <= floors[i].pos.y + floors[i].scale.y) && (camera_positon.y >= floors[i].pos.y)) {
+		if ((camera_positon.x + 0.3f >= floors[i].pos.x ) && (camera_positon.x - 0.3f <= floors[i].pos.x)) {
+			if ((camera_positon.z + 0.3f >= floors[i].pos.z ) && (camera_positon.z - 0.3f <= floors[i].pos.z)) {
+				if ((camera_positon.y <= floors[i].pos.y) && (camera_positon.y >= floors[i].pos.y)) {
 					return true;
 				}
 			}
@@ -1033,7 +1348,6 @@ bool collision(glm::vec3 camera_positon) {
 			}
 		}
 	}
-
 
 	return false;
 }
