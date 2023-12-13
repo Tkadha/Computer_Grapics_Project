@@ -359,7 +359,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	{
 		light_color = { 0.5f,0.5f,0.5f };
 		light_pos = { 0.f,9.5f,0.f };
-		camera_pos = { -4.5f, 9.f, -4.5f };
+		camera_pos = { -4.5f, 1.f, -4.5f };
 	}
 
 	InitBuffer();
