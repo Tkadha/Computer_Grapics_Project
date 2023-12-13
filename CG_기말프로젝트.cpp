@@ -14,9 +14,9 @@
 
 #define Width 1200
 #define Height 800
-#define Wall_count 5
+#define Wall_count 11
 #define Clear_Wall_count 3
-#define Floor_count 6
+#define Floor_count 8
 #define Button_count 3
 
 void make_vertexShaders();
@@ -292,6 +292,18 @@ public:
 	}
 
 };
+class Glass :public Shape {
+public:
+	glm::vec3 pos;
+	glm::vec3 scale;
+	void translate() {
+		glm::mat4 trans = glm::mat4(1.0f);
+		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
+		trans = glm::translate(trans, glm::vec3(pos));
+		trans = glm::scale(trans, glm::vec3(scale));
+		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
+	}
+};
 glm::vec3 light_pos;
 glm::vec3 light_color;
 glm::vec3 camera_pos;
@@ -313,8 +325,8 @@ Cube cube;
 // 버튼
 Button button[Button_count];
 
-
-
+// 유리
+Glass glass;
 
 // 준하
 
@@ -362,7 +374,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	}
 
 	{
-		light_color = { 0.5f,0.5f,0.5f };
+		light_color = { 0.3f,0.3f,0.3f };
 		light_pos = { 0.f,9.5f,0.f };
 		camera_pos = { -4.5f, 9.f, -4.5f };
 	}
@@ -493,8 +505,14 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 			clear_wall[i].Draw_shape();
 		}
 	}
-	glDisable(GL_BLEND);
 	//----------------------------------------------------------------------
+
+	//-------------------------------유리-----------------------------------
+	glass.translate();
+	glass.Draw_shape();
+	//----------------------------------------------------------------------
+
+	glDisable(GL_BLEND);
 	glutSwapBuffers(); // 화면에 출력하기
 }
 GLvoid Reshape(int w, int h) //--- 콜백 함수: 다시 그리기 콜백 함수
@@ -640,17 +658,34 @@ void InitBuffer() {
 		walls[0].scale = { 5.f, 8.f, 0.125f };
 
 		walls[1].pos = { 0.f,0.f, -3.75f };
-		walls[1].scale = { 0.125f, 10.f, 2.5f };
+		walls[1].scale = { 0.125f, 10.f, 2.5f };	// 세로
 
 		walls[2].pos = { 0.f,0.f, -1.25f };
 		walls[2].scale = { 0.125f, 10.f, 2.5f };
 
 		walls[3].pos = { -1.25f,0.f, 0.f };
-		walls[3].scale = { 2.5f, 10.f, 0.125f };
+		walls[3].scale = { 2.5f, 10.f, 0.125f };	// 가로
 
 		walls[4].pos = { -3.75f,0.f, 0.f };
 		walls[4].scale = { 2.5f, 8.f, 0.125f };
 
+		walls[5].pos = { -2.5f,0.f, 3.75f };
+		walls[5].scale = { 0.125f, 10.f, 2.5f };
+
+		walls[6].pos = { -2.5f,8.f, 1.25f };
+		walls[6].scale = { 0.125f, 2.f, 2.5f };
+
+		walls[7].pos = { -3.75f - 0.125f / 2,0.f, 2.5f+0.125f/2 };
+		walls[7].scale = { 2.5f, 6.f, 0.125f };
+
+		walls[8].pos = { 0.f,0.f, 3.75f };
+		walls[8].scale = { 0.125f, 4.f, 2.5f };
+
+		walls[9].pos = { 0.f,0.f, 1.25f };
+		walls[9].scale = { 0.125f, 6.f, 2.5f };
+
+		walls[10].pos = { -1.25f,4.f, 2.5f };
+		walls[10].scale = { 2.5f, 2.f, 0.125f };
 	}
 
 
@@ -664,7 +699,7 @@ void InitBuffer() {
 		floors[0].scale = { 2.5f, 0.125f, 2.5f };
 
 		//움직이는 발판
-		floors[1].pos = { -3.75f, 8.f, 3.75f };
+		floors[1].pos = { -3.75f, 8.f-0.125f, 3.75f };
 		floors[1].scale = { 2.5f, 0.125f, 2.5f };
 		floors[1].addy = -0.01f;
 
@@ -679,6 +714,12 @@ void InitBuffer() {
 
 		floors[5].pos = { -3.25f, 5.f, -1.25f };
 		floors[5].scale = { 3.5f, 0.125f, 2.5f };
+
+		floors[6].pos = { -2.5f, 6.f, 1.25f };
+		floors[6].scale = { 5.f, 0.125f, 2.5f };
+
+		floors[7].pos = { -1.25f, 4.f, 3.75f };
+		floors[7].scale = { 2.5f, 0.125f, 2.5f };
 	}
 
 	for (int i = 0; i < Button_count; ++i) {
@@ -700,8 +741,11 @@ void InitBuffer() {
 		button[2].push = false;
 	}
 
-
-
+	glass.Load_Obj("cube_floor.obj");
+	glass.Set_alpha(1.f, 1.f, 1.f, 0.5f);
+	glass.Create_texture("./resource/white.png");
+	glass.pos = { 0.f,6.f, 2.5f };
+	glass.scale = { 0.125f, 4.f, 5.f };
 
 
 	cube.Load_Obj("cube_floor.obj");
@@ -854,7 +898,7 @@ void move(int value) {
 }
 void move_floor(int value) {
 	floors[value].pos.y += floors[value].addy;
-	if ((floors[value].pos.y > 8.f) || (floors[value].pos.y < -0.125f)) {
+	if ((floors[value].pos.y > 8.f - 0.125f) || (floors[value].pos.y < 6.f-0.125f)) {
 		floors[value].addy *= -1;
 	}
 	glutTimerFunc(10, move_floor, value);
