@@ -16,6 +16,8 @@
 #define Height 800
 #define Wall_count 2
 #define Clear_Wall_count 2
+#define Floor_count 1
+
 void make_vertexShaders();
 void make_fragmentShaders();
 void make_shaderProgram();
@@ -275,12 +277,15 @@ glm::vec3 light_color;
 glm::vec3 camera_pos;
 
 // 기본 맵
-Floor floors[10][10];
+Floor ground[10][10];
 Floor ceiling;
 Wall map_wall[4][10][10];
 // 벽들
 Wall clear_wall[Clear_Wall_count];
 Wall walls[Wall_count];
+
+// 바닥
+Floor floors[Floor_count];
 
 // 들고 다닐수 있는 큐브
 Cube cube;
@@ -401,9 +406,9 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 10; ++j) {
 			trans = glm::mat4(1.0f);
-			trans = glm::translate(trans, glm::vec3(floors[i][j].pos));
+			trans = glm::translate(trans, glm::vec3(ground[i][j].pos));
 			glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
-			floors[i][j].Draw_shape();
+			ground[i][j].Draw_shape();
 		}
 	}
 	for (int k = 0; k < 4; ++k) {
@@ -425,10 +430,25 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 	}
 	//----------------------------------------------------------------------
 
+
+
+	//-------------------------------바닥------------------------------------
+	for (int i = 0; i < Floor_count; ++i) {
+		floors[i].translate();
+		floors[i].Draw_shape();
+	}
+	//----------------------------------------------------------------------
+
+
+
+
 	//-------------------------------큐브-----------------------------------
 	cube.translate();
 	cube.Draw_shape();
 	//----------------------------------------------------------------------
+
+
+
 
 
 	//-------------------------------반투명벽-------------------------------
@@ -533,10 +553,10 @@ void InitBuffer() {
 		ceiling.scale = { 10.f, 0.5f, 10.f };
 		for (int i = 0; i < 10; ++i) {
 			for (int j = 0; j < 10; ++j) {
-				floors[i][j].Load_Obj("cube_floor.obj");
-				floors[i][j].Set_color(1.f, 1.f, 1.f);
-				floors[i][j].Create_texture("./resource/floor_1.jpg");
-				floors[i][j].pos = { 0.5f + 1.f * (j - 5),-1.f,0.5f + 1.f * (i - 5) };
+				ground[i][j].Load_Obj("cube_floor.obj");
+				ground[i][j].Set_color(1.f, 1.f, 1.f);
+				ground[i][j].Create_texture("./resource/floor_1.jpg");
+				ground[i][j].pos = { 0.5f + 1.f * (j - 5),-1.f,0.5f + 1.f * (i - 5) };
 				map_wall[0][i][j].Load_Obj("cube_floor.obj");
 				map_wall[0][i][j].Set_color(1.f, 1.f, 1.f);
 				map_wall[0][i][j].Create_texture("./resource/wall_2.jpg");
@@ -565,8 +585,8 @@ void InitBuffer() {
 		clear_wall[0].pos = { 3.75f,0.f,2.5f + (0.125f / 2) };
 		clear_wall[0].scale = { 2.5f, 5.f, 0.125f };
 
-		clear_wall[1].pos = { -2.5f - (0.125f / 2),0.f,-3.75f };
-		clear_wall[1].scale = { 0.125f, 5.f, 2.5f };
+		clear_wall[1].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
+		clear_wall[1].scale = { 0.125f, 2.5f, 2.5f };
 	}
 	for (int i = 0; i < Wall_count; ++i) {
 		walls[i].Load_Obj("cube_floor.obj");
@@ -578,11 +598,19 @@ void InitBuffer() {
 		walls[0].scale = { 0.125f, 10.f, 2.5f };
 
 		walls[1].pos = { -3.75f,0.f,-2.5f };
-		walls[1].scale = { 2.5f, 5.f, 0.125f };
-
+		walls[1].scale = { 2.5f, 2.5f, 0.125f };
 
 	}
+	for (int i = 0; i < Floor_count; ++i) {
+		floors[i].Load_Obj("cube_floor.obj");
+		floors[i].Set_color(0.9f, 0.9f, 0.9f);
+		floors[i].Create_texture("./resource/metal_wall.jpg");
+	}
+	{
+		floors[0].pos = { -3.75f,2.5f - 0.125f,-3.75f - (0.125f / 2) };
+		floors[0].scale = { 2.5f, 0.125f, 2.5f };
 
+	}
 	cube.Load_Obj("cube_floor.obj");
 	cube.Set_color(1.f, 1.f, 1.f);
 	cube.Create_texture("./resource/cube_face.png");
