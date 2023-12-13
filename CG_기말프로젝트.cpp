@@ -16,7 +16,7 @@
 #define Height 800
 #define Wall_count 11
 #define Clear_Wall_count 3
-#define Floor_count 8
+#define Floor_count 9
 #define Button_count 3
 
 void make_vertexShaders();
@@ -36,6 +36,7 @@ void move(int);
 void move_floor(int);
 void button_collision(int);
 void drop(int);
+bool collision(glm::vec3 camera_positon);
 
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
@@ -376,7 +377,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	{
 		light_color = { 0.3f,0.3f,0.3f };
 		light_pos = { 0.f,9.5f,0.f };
-		camera_pos = { -4.5f, 9.f, -4.5f };
+		camera_pos = { -4.5f, 1.f, -4.5f };
 	}
 
 	InitBuffer();
@@ -720,6 +721,9 @@ void InitBuffer() {
 
 		floors[7].pos = { -1.25f, 4.f, 3.75f };
 		floors[7].scale = { 2.5f, 0.125f, 2.5f };
+
+		floors[8].pos = { -3.75f, 6.f, 3.75f };
+		floors[8].scale = { 2.5f, 0.125f, 2.5f };
 	}
 
 	for (int i = 0; i < Button_count; ++i) {
@@ -876,23 +880,20 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y)
 }
 
 void move(int value) {
-
-
-	camera_pos.x += cameraFront.x * speed * UD;
-	camera_pos.z += cameraFront.z * speed * UD;
-
-
-	if (LR == -1) {
-		glm::vec3 dir = set_dir(yaw - 90, pitch);
-		camera_pos.x += dir.x * speed * 0.7f;
-		camera_pos.z += dir.z * speed * 0.7f;
+	if (!collision(camera_pos)) {
+		camera_pos.x += cameraFront.x * speed * UD;
+		camera_pos.z += cameraFront.z * speed * UD;
+		if (LR == -1) {
+			glm::vec3 dir = set_dir(yaw - 90, pitch);
+			camera_pos.x += dir.x * speed * 0.7f;
+			camera_pos.z += dir.z * speed * 0.7f;
+		}
+		else if (LR == 1) {
+			glm::vec3 dir = set_dir(yaw + 90, pitch);
+			camera_pos.x += dir.x * speed * 0.7f;
+			camera_pos.z += dir.z * speed * 0.7f;
+		}
 	}
-	else if (LR == 1) {
-		glm::vec3 dir = set_dir(yaw + 90, pitch);
-		camera_pos.x += dir.x * speed * 0.7f;
-		camera_pos.z += dir.z * speed * 0.7f;
-	}
-
 	glutTimerFunc(10, move, value);
 	glutPostRedisplay();
 }
@@ -967,4 +968,72 @@ void drop(int value) {
 	}
 	glutTimerFunc(10, drop, value);
 	glutPostRedisplay();
+}
+
+bool collision(glm::vec3 camera_positon) {
+	camera_positon.x += cameraFront.x * speed * UD * 2;
+	camera_positon.z += cameraFront.z * speed * UD * 2;
+	if (LR == -1) {
+		glm::vec3 dir = set_dir(yaw - 90, pitch);
+		camera_positon.x += dir.x * speed * 0.7f * 2;
+		camera_positon.z += dir.z * speed * 0.7f * 2;
+	}
+	else if (LR == 1) {
+		glm::vec3 dir = set_dir(yaw + 90, pitch);
+		camera_positon.x += dir.x * speed * 0.7f * 2;
+		camera_positon.z += dir.z * speed * 0.7f * 2;
+	}
+	// 충돌검사 충돌 하면 true
+
+	for (int k = 0; k < 4; ++k) {
+		for (int i = 0; i < 10; ++i) {
+			for (int j = 0; j < 10; ++j) {
+				if ((camera_positon.x + 0.6f >= map_wall[k][i][j].pos.x - map_wall[k][i][j].scale.x / 2) && (camera_positon.x - 0.6f <= map_wall[k][i][j].pos.x + map_wall[k][i][j].scale.x / 2)) {
+					if ((camera_positon.z + 0.6f >= map_wall[k][i][j].pos.z - map_wall[k][i][j].scale.z / 2) && (camera_positon.z - 0.6f <= map_wall[k][i][j].pos.z + map_wall[k][i][j].scale.z / 2)) {
+						if ((camera_positon.y <= map_wall[k][i][j].pos.y + map_wall[k][i][j].scale.y) && (camera_positon.y >= map_wall[k][i][j].pos.y)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	for (int i = 0; i < Floor_count; ++i) {
+		if ((camera_positon.x + 0.3f >= floors[i].pos.x - floors[i].scale.x / 2) && (camera_positon.x - 0.3f <= floors[i].pos.x + floors[i].scale.x / 2)) {
+			if ((camera_positon.z + 0.3f >= floors[i].pos.z - floors[i].scale.z / 2) && (camera_positon.z - 0.3f <= floors[i].pos.z + floors[i].scale.z / 2)) {
+				if ((camera_positon.y <= floors[i].pos.y + floors[i].scale.y) && (camera_positon.y >= floors[i].pos.y)) {
+					return true;
+				}
+			}
+		}
+	}
+	for (int i = 0; i < Wall_count; ++i) {
+		if ((camera_positon.x + 0.3f >= walls[i].pos.x - walls[i].scale.x / 2) && (camera_positon.x - 0.3f <= walls[i].pos.x + walls[i].scale.x / 2)) {
+			if ((camera_positon.z + 0.3f >= walls[i].pos.z - walls[i].scale.z / 2) && (camera_positon.z - 0.3f <= walls[i].pos.z + walls[i].scale.z / 2)) {
+				if ((camera_positon.y <= walls[i].pos.y + walls[i].scale.y) && (camera_positon.y >= walls[i].pos.y)) {
+
+					return true;
+				}
+			}
+		}
+	}
+	for (int i = 0; i < Clear_Wall_count; ++i) {
+		if ((camera_positon.x + 0.3f >= clear_wall[i].pos.x - clear_wall[i].scale.x / 2) && (camera_positon.x - 0.3f <= clear_wall[i].pos.x + clear_wall[i].scale.x / 2)) {
+			if ((camera_positon.z + 0.3f >= clear_wall[i].pos.z - clear_wall[i].scale.z / 2) && (camera_positon.z - 0.3f <= clear_wall[i].pos.z + clear_wall[i].scale.z / 2)) {
+				if ((camera_positon.y <= clear_wall[i].pos.y + clear_wall[i].scale.y) && (camera_positon.y >= clear_wall[i].pos.y)) {
+					return true;
+				}
+			}
+		}
+	}
+	if ((camera_positon.x + 0.3f >= glass.pos.x - glass.scale.x / 2) && (camera_positon.x - 0.3f <= glass.pos.x + glass.scale.x / 2)) {
+		if ((camera_positon.z + 0.3f >= glass.pos.z - glass.scale.z / 2) && (camera_positon.z - 0.3f <= glass.pos.z + glass.scale.z / 2)) {
+			if ((camera_positon.y <= glass.pos.y + glass.scale.y) && (camera_positon.y >= glass.pos.y)) {
+				return true;
+			}
+		}
+	}
+
+
+	return false;
 }
