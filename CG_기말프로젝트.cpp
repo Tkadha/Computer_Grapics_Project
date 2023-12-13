@@ -391,7 +391,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	}
 
 	{
-		light_color = { 0.4f,0.4f,0.3f };
+		light_color = { 0.4f,0.4f,0.4f };
 		light_pos = { 0.f,12.f,0.f };
 		camera_pos = { -4.5f, 1.f, -4.5f };
 	}
