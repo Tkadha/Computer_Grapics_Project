@@ -14,10 +14,10 @@
 
 #define Width 1200
 #define Height 800
-#define Wall_count 3
-#define Clear_Wall_count 1
-#define Floor_count 2
-#define Button_count 1
+#define Wall_count 2
+#define Clear_Wall_count 2
+#define Floor_count 4
+#define Button_count 2
 
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -359,7 +359,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	{
 		light_color = { 0.5f,0.5f,0.5f };
 		light_pos = { 0.f,9.5f,0.f };
-		camera_pos = { -4.5f, 1.f, -4.5f };
+		camera_pos = { -4.5f, 9.f, -4.5f };
 	}
 
 	InitBuffer();
@@ -389,6 +389,7 @@ GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 
 	ShowCursor(false);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 
 	unsigned int proj_location = glGetUniformLocation(shaderProgramID, "projection");
 	unsigned int view_location = glGetUniformLocation(shaderProgramID, "view");
@@ -613,6 +614,9 @@ void InitBuffer() {
 	{
 		clear_wall[0].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
 		clear_wall[0].scale = { 0.125f, 2.5f, 2.5f };
+
+		clear_wall[1].pos = { -2.5f-0.00001f , 0.f, -2.5f + 0.001f };
+		clear_wall[1].scale = { 5.f, 11.f, 0.125f };
 	}
 
 
@@ -622,14 +626,11 @@ void InitBuffer() {
 		walls[i].Create_texture("./resource/metal_wall.jpg");
 	}
 	{
-		walls[0].pos = { 2.5f,0.f,3.75f };
-		walls[0].scale = { 0.125f, 10.f, 2.5f };
+		walls[0].pos = { -2.5f,0.f,-2.5f };
+		walls[0].scale = { 5.f, 8.f, 0.125f };
 
-		walls[1].pos = { -3.75f,0.f,-2.5f };
-		walls[1].scale = { 2.5f, 2.5f, 0.125f };
-
-		walls[2].pos = { 0.f,0.f, -3.75f };
-		walls[2].scale = { 0.125f, 10.f, 2.5f };
+		walls[1].pos = { 0.f,0.f, -3.75f };
+		walls[1].scale = { 0.125f, 10.f, 2.5f };
 
 	}
 
@@ -648,6 +649,11 @@ void InitBuffer() {
 		floors[1].scale = { 2.5f, 0.125f, 2.5f };
 		floors[1].addy = -0.01f;
 
+		floors[2].pos = { -1.25f, 5.f - 0.125f, -3.75f - (0.125f / 2) };
+		floors[2].scale = { 2.5f, 0.125f, 2.5f };
+
+		floors[3].pos = { -3.75f, 8.f - 0.125f, -3.75f - (0.125f / 2) };
+		floors[3].scale = { 2.5f, 0.125f, 2.5f };
 	}
 
 	for (int i = 0; i < Button_count; ++i) {
@@ -659,6 +665,10 @@ void InitBuffer() {
 		button[0].pos = { -3.75f - 0.625f ,0.f, -3.75f + 0.625f };
 		button[0].scale = { 0.75f, 0.125f, 0.75f };
 		button[0].push = false;
+
+		button[1].pos = { -3.75f - 0.625f ,8.f, -3.75f + 0.625f };
+		button[1].scale = { 0.75f, 0.125f, 0.75f };
+		button[1].push = false;
 	}
 
 
