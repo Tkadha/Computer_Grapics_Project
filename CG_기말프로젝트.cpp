@@ -34,7 +34,7 @@ void pos_change(int win_x, int win_y, float* gl_x, float* gl_y);
 glm::vec3 set_dir(float yaw, float pitch);
 void move(int);
 void move_floor(int);
-void check_collision(int);
+void button_collision(int);
 
 GLchar* vertexSource, * fragmentSource; //--- 소스코드 저장 변수
 GLuint vertexShader, fragmentShader; //--- 세이더 객체
@@ -366,7 +366,7 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 
 	glutTimerFunc(10, move, 0);
 	glutTimerFunc(10, move_floor, 1);
-	glutTimerFunc(10, check_collision, 0);
+	glutTimerFunc(10, button_collision, 0);
 	//--- 세이더 읽어와서 세이더 프로그램 만들기
 	glutDisplayFunc(drawScene); //--- 출력 콜백 함수
 	glutReshapeFunc(Reshape);
@@ -828,7 +828,7 @@ void move_floor(int value) {
 	glutTimerFunc(10, move_floor, value);
 	glutPostRedisplay();
 }
-void check_collision(int value) {
+void button_collision(int value) {
 	for (int i = 0; i < Button_count; ++i) {
 		if (!button[i].push) {
 			if ((camera_pos.x >= button[i].pos.x - button[i].scale.x) && (camera_pos.x <= button[i].pos.x + button[i].scale.x)) {
@@ -842,7 +842,6 @@ void check_collision(int value) {
 			}			
 		}
 	}
-
-	glutTimerFunc(10, check_collision, value);
+	glutTimerFunc(10, button_collision, value);
 	glutPostRedisplay();
 }
