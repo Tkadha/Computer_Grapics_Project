@@ -382,7 +382,6 @@ void main(int argc, char** argv) //--- 윈도우 출력하고 콜백함수 설정
 	glutPassiveMotionFunc(Motion);	// 마우스 이동 항상 입력받기
 	glutMainLoop();
 }
-
 GLvoid drawScene() //--- 콜백 함수: 그리기 콜백 함수
 {
 	GLfloat rColor, gColor, bColor;
@@ -623,8 +622,8 @@ void InitBuffer() {
 		clear_wall[0].pos = { -2.5f - (0.125f / 2),0.f - 0.125f - 0.00001f,-3.75f - (0.125f / 2) };
 		clear_wall[0].scale = { 0.125f, 2.5f, 2.5f };
 
-		clear_wall[1].pos = { -2.5f-0.00001f , 0.f, -2.5f + 0.001f };
-		clear_wall[1].scale = { 5.f, 11.f, 0.125f };
+		clear_wall[1].pos = { -2.5f-0.00001f , 8.f, -2.5f + 0.001f };
+		clear_wall[1].scale = { 5.f, 2.f, 0.125f };
 
 		clear_wall[2].pos = { -3.75f-0.000001f,8.f + 0.000001f, 0.f };
 		clear_wall[2].scale = { 2.5f, 2.f, 0.125f };
@@ -675,7 +674,7 @@ void InitBuffer() {
 		floors[3].pos = { -3.75f, 8.f - 0.125f, -3.75f - (0.125f / 2) };
 		floors[3].scale = { 2.5f, 0.125f, 2.5f };
 
-		floors[4].pos = { -3.75f, 8.f, 1.25f };
+		floors[4].pos = { -3.75f, 8.f - 0.125f, 1.25f };
 		floors[4].scale = { 2.5f, 0.125f, 2.5f };
 
 		floors[5].pos = { -3.25f, 5.f, -1.25f };
@@ -696,7 +695,7 @@ void InitBuffer() {
 		button[1].scale = { 0.75f, 0.125f, 0.75f };
 		button[1].push = false;
 
-		button[2].pos = { -3.75f, 0.f, -1.25f };
+		button[2].pos = { -2.0f, 0.f, -1.25f };
 		button[2].scale = { 0.75f, 0.125f, 0.75f };
 		button[2].push = false;
 	}
@@ -895,6 +894,19 @@ void drop(int value) {
 					camera_pos.y = floors[i].pos.y + floors[i].scale.y + 1.f;
 					contact = true;
 					dropspeed = -0.003f;
+				}
+			}
+		}
+	}
+	if (!contact) {
+		for (int i = 0; i < Wall_count; ++i) {
+			if ((camera_pos.x + 0.2f >= walls[i].pos.x - walls[i].scale.x / 2) && (camera_pos.x - 0.2f <= walls[i].pos.x + walls[i].scale.x / 2)) {
+				if ((camera_pos.z + 0.2f >= walls[i].pos.z - walls[i].scale.z / 2) && (camera_pos.z - 0.2f <= walls[i].pos.z + walls[i].scale.z / 2)) {
+					if ((camera_pos.y - 1.f <= walls[i].pos.y + walls[i].scale.y) && (camera_pos.y - 1.f >= walls[i].pos.y)) {
+						camera_pos.y = walls[i].pos.y + walls[i].scale.y + 1.f;
+						contact = true;
+						dropspeed = -0.003f;
+					}
 				}
 			}
 		}
