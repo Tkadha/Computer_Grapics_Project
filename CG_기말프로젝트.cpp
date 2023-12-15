@@ -1649,7 +1649,7 @@ void elevator(int value) {
 void cube_collision(float yaw, float pitch) {
 	glm::vec3 line = camera_pos;
 
-	for (int t = 0; t < 10; ++t) {
+	for (int t = 0; t < 2; ++t) {
 		line += cameraFront;
 		if (is_in_cube(line)) {
 			cube.grab = true;
