@@ -4,9 +4,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/ext.hpp>
-#include <gl/glm/glm.hpp>
-#include <gl/glm/ext/matrix_transform.hpp>
+#include <gl/ext.hpp>
+#include <gl/glm.hpp>
+#include <gl/ext/matrix_transform.hpp>
 #include <stdlib.h>
 #include <random>
 #include <fstream>
@@ -49,8 +49,8 @@ void render();
 bool in_endzone();
 
 
-GLchar* vertexSource, * fragmentSource; //--- ¼Ò½ºÄÚµå ÀúÀå º¯¼ö
-GLuint vertexShader, fragmentShader; //--- ¼¼ÀÌ´õ °´Ã¼
+GLchar* vertexSource, * fragmentSource; //--- ì†ŒìŠ¤ì½”ë“œ ì €ì¥ ë³€ìˆ˜
+GLuint vertexShader, fragmentShader; //--- ì„¸ì´ë” ê°ì²´
 GLuint shaderProgramID;
 GLuint vao;
 
@@ -80,7 +80,7 @@ public:
 		std::string lineHeader;
 		std::ifstream in(path);
 		if (!in) {
-			std::cerr << path << "ÆÄÀÏ ¸øÃ£À½";
+			std::cerr << path << "íŒŒì¼ ëª»ì°¾ìŒ";
 			exit(1);
 		}
 		while (in >> lineHeader) {
@@ -340,18 +340,6 @@ public:
 		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
 	}
 };
-//class PortalGun :public Shape {
-//public:
-//	glm::vec3 pos;
-//	glm::vec3 scale;
-//	void translate() {
-//		glm::mat4 trans = glm::mat4(1.0f);
-//		unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
-//		trans = glm::translate(trans, glm::vec3(pos));
-//		trans = glm::scale(trans, glm::vec3(scale));
-//		glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
-//	}
-//};
 class Bullet : public Shape {
 public:
 	glm::vec3 pos;
@@ -456,70 +444,71 @@ glm::vec3 light_pos;
 glm::vec3 light_color;
 glm::vec3 camera_pos;
 
-// ±âº» ¸Ê
+// ê¸°ë³¸ ë§µ
 Floor ground[10][10];
-Floor ceiling[10][10];        // ÃµÀå
+Floor ceiling[10][10];        // ì²œì¥
 Wall map_wall[4][20][10];
-// º®µé
+// ë²½ë“¤
 Wall clear_wall[Clear_Wall_count];
 Wall walls[Wall_count];
 
-// ¹Ù´Ú
+// ë°”ë‹¥
 Floor floors[Floor_count];
 
-// µé°í ´Ù´Ò¼ö ÀÖ´Â Å¥ºê
+// ë“¤ê³  ë‹¤ë‹ìˆ˜ ìˆëŠ” íë¸Œ
 Cube cube;
 
-// ¹öÆ°
+// ë²„íŠ¼
 Button button[Button_count];
 
-// À¯¸®
+// ìœ ë¦¬
 Glass glass[Glass_count];
 
-// ÄÉÀÌÅ©
+// ì¼€ì´í¬
 Cake cake;
 
-// Æ÷Å»°Ç
+// í¬íƒˆê±´
 //PortalGun portalgun;
 
-// ÁØÇÏ
+// ì¤€í•˜
 
 int UD;
 int LR;
 
 
 float dropspeed = -0.003f;
+bool ghost = false;
 
 
 
-// ÅÂ°æ
+// íƒœê²½
 
-// Æ÷Å»¿¡¼­ ³ª°¡´Â ±¸Ã¼(ÀÓ½Ã)
+// í¬íƒˆì—ì„œ ë‚˜ê°€ëŠ” êµ¬ì²´(ì„ì‹œ)
 Bullet blue_bullet, red_bullet;
 Portal blue, red;
 
-GLfloat window_w = Width, window_h = Height;	// ¸¶¿ì½º ÀÔ·Â ÁÂÇ¥ º¯È¯ÇÒ ¶§ Ã¢ Å©±â¿¡ µû¶ó ÇÏ±â À§ÇØ¼­ ¾²ÀÓ 
-float speed = 0.05f;		// ÁÖÀÎ°ø ÀÌµ¿¼Óµµ
+GLfloat window_w = Width, window_h = Height;	// ë§ˆìš°ìŠ¤ ì…ë ¥ ì¢Œí‘œ ë³€í™˜í•  ë•Œ ì°½ í¬ê¸°ì— ë”°ë¼ í•˜ê¸° ìœ„í•´ì„œ ì“°ì„ 
+float speed = 0.05f;		// ì£¼ì¸ê³µ ì´ë™ì†ë„
 
-	//gpt´Â ½ÅÀÌ¾ß
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// ÀÏÀÎÄª Ä«¸Ş¶ó ¹æÇâ ¹Ù²Ù·Á°í Ãß°¡
+	//gptëŠ” ì‹ ì´ì•¼
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);	// ì¼ì¸ì¹­ ì¹´ë©”ë¼ ë°©í–¥ ë°”ê¾¸ë ¤ê³  ì¶”ê°€
 
-float cameraSpeed = 0.05f; // Á¶Àı °¡´ÉÇÑ Ä«¸Ş¶ó ÀÌµ¿ ¼Óµµ
-float sensitivity = 0.05f; // Á¶Àı °¡´ÉÇÑ ¸¶¿ì½º °¨µµ
+float cameraSpeed = 0.05f; // ì¡°ì ˆ ê°€ëŠ¥í•œ ì¹´ë©”ë¼ ì´ë™ ì†ë„
+float sensitivity = 0.05f; // ì¡°ì ˆ ê°€ëŠ¥í•œ ë§ˆìš°ìŠ¤ ê°ë„
 
-float yaw = 10.0f; // Ä«¸Ş¶óÀÇ ÃÊ±â yaw °¢µµ
-float pitch = 10.0f;  // Ä«¸Ş¶óÀÇ ÃÊ±â pitch °¢µµ
+float yaw = 10.0f; // ì¹´ë©”ë¼ì˜ ì´ˆê¸° yaw ê°ë„
+float pitch = 10.0f;  // ì¹´ë©”ë¼ì˜ ì´ˆê¸° pitch ê°ë„
 
 bool firstMouse = true;
 float lastX = 400.0f;
 float lastY = 300.0f;
 
-// ¼±À» ±×¸± ¶§ »ç¿ëÇÒ Á¡ÀÇ ÁÂÇ¥
+// ì„ ì„ ê·¸ë¦´ ë•Œ ì‚¬ìš©í•  ì ì˜ ì¢Œí‘œ
 
 
-void main(int argc, char** argv) //--- À©µµ¿ì Ãâ·ÂÇÏ°í Äİ¹éÇÔ¼ö ¼³Á¤
+void main(int argc, char** argv) //--- ìœˆë„ìš° ì¶œë ¥í•˜ê³  ì½œë°±í•¨ìˆ˜ ì„¤ì •
 {
-	//--- À©µµ¿ì »ı¼ºÇÏ±â
+	//--- ìœˆë„ìš° ìƒì„±í•˜ê¸°
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 	glutInitWindowPosition(100, 100);
@@ -529,8 +518,8 @@ void main(int argc, char** argv) //--- À©µµ¿ì Ãâ·ÂÇÏ°í Äİ¹éÇÔ¼ö ¼³Á¤
 	glewInit();
 	make_shaderProgram();
 
-	{	//¼³¸í		
-		std::cout << "q/Q: ÇÁ·Î±×·¥ Á¾·á" << std::endl;
+	{	//ì„¤ëª…		
+		std::cout << "q/Q: í”„ë¡œê·¸ë¨ ì¢…ë£Œ" << std::endl;
 	}
 
 	{
@@ -553,16 +542,16 @@ void main(int argc, char** argv) //--- À©µµ¿ì Ãâ·ÂÇÏ°í Äİ¹éÇÔ¼ö ¼³Á¤
 	glutTimerFunc(10, portal_update, 0);
 	glutTimerFunc(10, elevator, 0);
 
-	//--- ¼¼ÀÌ´õ ÀĞ¾î¿Í¼­ ¼¼ÀÌ´õ ÇÁ·Î±×·¥ ¸¸µé±â
-	glutDisplayFunc(drawScene); //--- Ãâ·Â Äİ¹é ÇÔ¼ö
+	//--- ì„¸ì´ë” ì½ì–´ì™€ì„œ ì„¸ì´ë” í”„ë¡œê·¸ë¨ ë§Œë“¤ê¸°
+	glutDisplayFunc(drawScene); //--- ì¶œë ¥ ì½œë°± í•¨ìˆ˜
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
 	glutKeyboardUpFunc(UpKeyboard);
 	glutMouseFunc(Mouse);
-	glutPassiveMotionFunc(Motion);	// ¸¶¿ì½º ÀÌµ¿ Ç×»ó ÀÔ·Â¹Ş±â
+	glutPassiveMotionFunc(Motion);	// ë§ˆìš°ìŠ¤ ì´ë™ í•­ìƒ ì…ë ¥ë°›ê¸°
 	glutMainLoop();
 }
-GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
+GLvoid drawScene() //--- ì½œë°± í•¨ìˆ˜: ê·¸ë¦¬ê¸° ì½œë°± í•¨ìˆ˜
 {
 	GLfloat rColor, gColor, bColor;
 	rColor = gColor = bColor = 0.7f;
@@ -590,8 +579,8 @@ GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
 		//glm::mat4 ortho = glm::ortho(0.0f, window_w, 0.0f, window_h, -1.0f, 1.0f);
 		//glUniformMatrix4fv(proj_location, 1, GL_FALSE, &ortho[0][0]);
 
-		//// ºä Çà·Ä (2D ¿À¹ö·¹ÀÌ)
-		//glm::mat4 overlay_view = glm::mat4(1.0f); // 2D ÀÌ¹ÌÁö´Â Ä«¸Ş¶ó ÀÌµ¿ÀÌ ÇÊ¿ä ¾øÀ¸¹Ç·Î Ç×µî Çà·ÄÀ» »ç¿ëÇÕ´Ï´Ù.
+		//// ë·° í–‰ë ¬ (2D ì˜¤ë²„ë ˆì´)
+		//glm::mat4 overlay_view = glm::mat4(1.0f); // 2D ì´ë¯¸ì§€ëŠ” ì¹´ë©”ë¼ ì´ë™ì´ í•„ìš” ì—†ìœ¼ë¯€ë¡œ í•­ë“± í–‰ë ¬ì„ ì‚¬ìš©í•©ë‹ˆë‹¤.
 		//glUniformMatrix4fv(view_location, 1, GL_FALSE, &overlay_view[0][0]);
 
 		//glDisable(GL_CULL_FACE);
@@ -606,17 +595,17 @@ GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
 
 
 	glViewport(0, 0, window_w, window_h);
-	//Åõ¿µÇà·Ä
+	//íˆ¬ì˜í–‰ë ¬
 	glm::mat4 proj = glm::mat4(1.0f);
 	proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
 	proj = glm::translate(proj, glm::vec3(0.f, 0.f, 0.f));
 	glUniformMatrix4fv(proj_location, 1, GL_FALSE, &proj[0][0]);
 
-	//ºä Çà·Ä
-	glm::vec3 cameraPos = glm::vec3(camera_pos); //--- Ä«¸Ş¶ó À§Ä¡
-	//glm::vec3 cameraDirection = glm::vec3(camera_pos.x - 2.0f, camera_pos.y, 0.f); //--- Ä«¸Ş¶ó ¹Ù¶óº¸´Â ¹æÇâ
-	glm::vec3 cameraDirection = camera_pos + cameraFront; // fps¸¸µé·Á°í ¹Ù²åÀ½ (gpt´Ô´Ô´ÔÀÌ ÀÌ·¸°Ô ÇÏ¶óÇØ¼­)
-	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- Ä«¸Ş¶ó À§ÂÊ ¹æÇâ
+	//ë·° í–‰ë ¬
+	glm::vec3 cameraPos = glm::vec3(camera_pos); //--- ì¹´ë©”ë¼ ìœ„ì¹˜
+	//glm::vec3 cameraDirection = glm::vec3(camera_pos.x - 2.0f, camera_pos.y, 0.f); //--- ì¹´ë©”ë¼ ë°”ë¼ë³´ëŠ” ë°©í–¥
+	glm::vec3 cameraDirection = camera_pos + cameraFront; // fpsë§Œë“¤ë ¤ê³  ë°”ê¿¨ìŒ (gptë‹˜ë‹˜ë‹˜ì´ ì´ë ‡ê²Œ í•˜ë¼í•´ì„œ)
+	glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- ì¹´ë©”ë¼ ìœ„ìª½ ë°©í–¥
 	glm::mat4 view = glm::mat4(1.0f);
 	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 	glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
@@ -625,18 +614,18 @@ GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
 
 	// blue portal
 	if (blue.render) {
-		glViewport(window_w * 7 / 8, window_h  * 7 / 8, window_w / 8, window_h / 8);
+		glViewport(window_w * 7 / 8, window_h * 7 / 8, window_w / 8, window_h / 8);
 		{
-			//Åõ¿µÇà·Ä
+			//íˆ¬ì˜í–‰ë ¬
 			glm::mat4 proj = glm::mat4(1.0f);
 			proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
 			proj = glm::translate(proj, glm::vec3(0.f, 0.f, 0.f));
 			glUniformMatrix4fv(proj_location, 1, GL_FALSE, &proj[0][0]);
 
-			//ºä Çà·Ä
-			glm::vec3 cameraPos = glm::vec3(red.pos + red.dir); //--- Ä«¸Ş¶ó À§Ä¡
-			glm::vec3 cameraDirection = red.dir; // fps¸¸µé·Á°í ¹Ù²åÀ½ (gpt´Ô´Ô´ÔÀÌ ÀÌ·¸°Ô ÇÏ¶óÇØ¼­)
-			glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- Ä«¸Ş¶ó À§ÂÊ ¹æÇâ
+			//ë·° í–‰ë ¬
+			glm::vec3 cameraPos = glm::vec3(red.pos + red.dir); //--- ì¹´ë©”ë¼ ìœ„ì¹˜
+			glm::vec3 cameraDirection = red.dir; // fpsë§Œë“¤ë ¤ê³  ë°”ê¿¨ìŒ (gptë‹˜ë‹˜ë‹˜ì´ ì´ë ‡ê²Œ í•˜ë¼í•´ì„œ)
+			glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- ì¹´ë©”ë¼ ìœ„ìª½ ë°©í–¥
 			glm::mat4 view = glm::mat4(1.0f);
 			view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 			glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
@@ -649,16 +638,16 @@ GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
 	if (blue.render) {
 		glViewport(0, window_h * 7 / 8, window_w / 8, window_h / 8);
 		{
-			//Åõ¿µÇà·Ä
+			//íˆ¬ì˜í–‰ë ¬
 			glm::mat4 proj = glm::mat4(1.0f);
 			proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 50.0f);
 			proj = glm::translate(proj, glm::vec3(0.f, 0.f, 0.f));
 			glUniformMatrix4fv(proj_location, 1, GL_FALSE, &proj[0][0]);
 
-			//ºä Çà·Ä
-			glm::vec3 cameraPos = glm::vec3(blue.pos + blue.dir); //--- Ä«¸Ş¶ó À§Ä¡
-			glm::vec3 cameraDirection = blue.dir; // fps¸¸µé·Á°í ¹Ù²åÀ½ (gpt´Ô´Ô´ÔÀÌ ÀÌ·¸°Ô ÇÏ¶óÇØ¼­)
-			glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- Ä«¸Ş¶ó À§ÂÊ ¹æÇâ
+			//ë·° í–‰ë ¬
+			glm::vec3 cameraPos = glm::vec3(blue.pos + blue.dir); //--- ì¹´ë©”ë¼ ìœ„ì¹˜
+			glm::vec3 cameraDirection = blue.dir; // fpsë§Œë“¤ë ¤ê³  ë°”ê¿¨ìŒ (gptë‹˜ë‹˜ë‹˜ì´ ì´ë ‡ê²Œ í•˜ë¼í•´ì„œ)
+			glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- ì¹´ë©”ë¼ ìœ„ìª½ ë°©í–¥
 			glm::mat4 view = glm::mat4(1.0f);
 			view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
 			glUniformMatrix4fv(view_location, 1, GL_FALSE, &view[0][0]);
@@ -666,10 +655,10 @@ GLvoid drawScene() //--- Äİ¹é ÇÔ¼ö: ±×¸®±â Äİ¹é ÇÔ¼ö
 			render();
 		}
 	}
-	
-	glutSwapBuffers(); // È­¸é¿¡ Ãâ·ÂÇÏ±â
+
+	glutSwapBuffers(); // í™”ë©´ì— ì¶œë ¥í•˜ê¸°
 }
-GLvoid Reshape(int w, int h) //--- Äİ¹é ÇÔ¼ö: ´Ù½Ã ±×¸®±â Äİ¹é ÇÔ¼ö
+GLvoid Reshape(int w, int h) //--- ì½œë°± í•¨ìˆ˜: ë‹¤ì‹œ ê·¸ë¦¬ê¸° ì½œë°± í•¨ìˆ˜
 {
 	glViewport(0, 0, w, h);
 	window_w = w;
@@ -678,56 +667,56 @@ GLvoid Reshape(int w, int h) //--- Äİ¹é ÇÔ¼ö: ´Ù½Ã ±×¸®±â Äİ¹é ÇÔ¼ö
 void make_vertexShaders()
 {
 	vertexSource = filetobuf("vertex_project.glsl");
-	//--- ¹öÅØ½º ¼¼ÀÌ´õ °´Ã¼ ¸¸µé±â
+	//--- ë²„í…ìŠ¤ ì„¸ì´ë” ê°ì²´ ë§Œë“¤ê¸°
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	//--- ¼¼ÀÌ´õ ÄÚµå¸¦ ¼¼ÀÌ´õ °´Ã¼¿¡ ³Ö±â
+	//--- ì„¸ì´ë” ì½”ë“œë¥¼ ì„¸ì´ë” ê°ì²´ì— ë„£ê¸°
 	glShaderSource(vertexShader, 1, (const GLchar**)&vertexSource, 0);
-	//--- ¹öÅØ½º ¼¼ÀÌ´õ ÄÄÆÄÀÏÇÏ±â
+	//--- ë²„í…ìŠ¤ ì„¸ì´ë” ì»´íŒŒì¼í•˜ê¸°
 	glCompileShader(vertexShader);
-	//--- ÄÄÆÄÀÏÀÌ Á¦´ë·Î µÇÁö ¾ÊÀº °æ¿ì: ¿¡·¯ Ã¼Å©
+	//--- ì»´íŒŒì¼ì´ ì œëŒ€ë¡œ ë˜ì§€ ì•Šì€ ê²½ìš°: ì—ëŸ¬ ì²´í¬
 	GLint result;
 	GLchar errorLog[512];
 	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &result);
 	if (!result)
 	{
 		glGetShaderInfoLog(vertexShader, 512, NULL, errorLog);
-		std::cout << "ERROR: vertex shader ÄÄÆÄÀÏ ½ÇÆĞ\n" << errorLog << std::endl;
+		std::cout << "ERROR: vertex shader ì»´íŒŒì¼ ì‹¤íŒ¨\n" << errorLog << std::endl;
 		return;
 	}
 }
 void make_fragmentShaders()
 {
 	fragmentSource = filetobuf("fragment_project.glsl");
-	//--- ÇÁ·¡±×¸ÕÆ® ¼¼ÀÌ´õ °´Ã¼ ¸¸µé±â
+	//--- í”„ë˜ê·¸ë¨¼íŠ¸ ì„¸ì´ë” ê°ì²´ ë§Œë“¤ê¸°
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	//--- ¼¼ÀÌ´õ ÄÚµå¸¦ ¼¼ÀÌ´õ °´Ã¼¿¡ ³Ö±â
+	//--- ì„¸ì´ë” ì½”ë“œë¥¼ ì„¸ì´ë” ê°ì²´ì— ë„£ê¸°
 	glShaderSource(fragmentShader, 1, (const GLchar**)&fragmentSource, 0);
-	//--- ÇÁ·¡±×¸ÕÆ® ¼¼ÀÌ´õ ÄÄÆÄÀÏ
+	//--- í”„ë˜ê·¸ë¨¼íŠ¸ ì„¸ì´ë” ì»´íŒŒì¼
 	glCompileShader(fragmentShader);
-	//--- ÄÄÆÄÀÏÀÌ Á¦´ë·Î µÇÁö ¾ÊÀº °æ¿ì: ÄÄÆÄÀÏ ¿¡·¯ Ã¼Å©
+	//--- ì»´íŒŒì¼ì´ ì œëŒ€ë¡œ ë˜ì§€ ì•Šì€ ê²½ìš°: ì»´íŒŒì¼ ì—ëŸ¬ ì²´í¬
 	GLint result;
 	GLchar errorLog[512];
 	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &result);
 	if (!result)
 	{
 		glGetShaderInfoLog(fragmentShader, 512, NULL, errorLog);
-		std::cerr << "ERROR: fragment shader ÄÄÆÄÀÏ ½ÇÆĞ\n" << errorLog << std::endl;
+		std::cerr << "ERROR: fragment shader ì»´íŒŒì¼ ì‹¤íŒ¨\n" << errorLog << std::endl;
 		return;
 	}
 }
 void make_shaderProgram()
 {
-	make_vertexShaders(); //--- ¹öÅØ½º ¼¼ÀÌ´õ ¸¸µé±â
-	make_fragmentShaders(); //--- ÇÁ·¡±×¸ÕÆ® ¼¼ÀÌ´õ ¸¸µé±â
+	make_vertexShaders(); //--- ë²„í…ìŠ¤ ì„¸ì´ë” ë§Œë“¤ê¸°
+	make_fragmentShaders(); //--- í”„ë˜ê·¸ë¨¼íŠ¸ ì„¸ì´ë” ë§Œë“¤ê¸°
 	//-- shader Program
 	shaderProgramID = glCreateProgram();
 	glAttachShader(shaderProgramID, vertexShader);
 	glAttachShader(shaderProgramID, fragmentShader);
 	glLinkProgram(shaderProgramID);
-	//--- ¼¼ÀÌ´õ »èÁ¦ÇÏ±â
+	//--- ì„¸ì´ë” ì‚­ì œí•˜ê¸°
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
-	//--- Shader Program »ç¿ëÇÏ±â
+	//--- Shader Program ì‚¬ìš©í•˜ê¸°
 	glUseProgram(shaderProgramID);
 }
 char* filetobuf(const char* file)
@@ -822,13 +811,13 @@ void InitBuffer() {
 		walls[0].scale = { 5.f, 8.f, 0.125f };
 
 		walls[1].pos = { 0.f,0.f, -3.75f };
-		walls[1].scale = { 0.125f, 10.f, 2.5f };	// ¼¼·Î
+		walls[1].scale = { 0.125f, 10.f, 2.5f };	// ì„¸ë¡œ
 
 		walls[2].pos = { 0.f,0.f, -1.25f };
 		walls[2].scale = { 0.125f, 10.f, 2.5f };
 
 		walls[3].pos = { -1.25f,0.f, 0.f };
-		walls[3].scale = { 2.5f, 10.f, 0.125f };	// °¡·Î
+		walls[3].scale = { 2.5f, 10.f, 0.125f };	// ê°€ë¡œ
 
 		walls[4].pos = { -3.75f,0.f, 0.f };
 		walls[4].scale = { 2.5f, 8.f, 0.125f };
@@ -868,7 +857,7 @@ void InitBuffer() {
 		floors[0].pos = { -3.75f,2.5f - 0.125f,-3.75f - (0.125f / 2) };
 		floors[0].scale = { 2.5f, 0.125f, 2.5f };
 
-		//¿òÁ÷ÀÌ´Â ¹ßÆÇ
+		//ì›€ì§ì´ëŠ” ë°œíŒ
 		floors[1].pos = { -3.75f, 8.f - 0.125f, 3.75f };
 		floors[1].scale = { 2.5f, 0.125f, 2.5f };
 		floors[1].addy = -0.01f;
@@ -1056,6 +1045,12 @@ GLvoid Keyboard(unsigned char key, int x, int y)
 	case 'r':
 		cube.pos = camera_pos + cameraFront * 1.25f;
 		break;
+	case 'g':
+		if (ghost)
+			ghost = false;
+		else
+			ghost = true;
+		break;
 	case 'l':
 		camera_pos = { -4.5f, 1.f, -4.5f };
 		cube.pos = { -4.f,0.f,-4.f };
@@ -1120,7 +1115,7 @@ void Motion(int x, int y)
 	yaw += xOffset;
 	pitch += yOffset;
 
-	// pitchÀÇ ¹üÀ§¸¦ Á¦ÇÑÇÕ´Ï´Ù.
+	// pitchì˜ ë²”ìœ„ë¥¼ ì œí•œí•©ë‹ˆë‹¤.
 	if (pitch > 89.0f) {
 		pitch = 89.0f;
 	}
@@ -1137,7 +1132,7 @@ void Motion(int x, int y)
 	lastX = static_cast<float>(x);
 	lastY = static_cast<float>(y);
 
-	glutWarpPointer(window_w / 2, window_h / 2);	// ¸¶¿ì½º¸¦ Áß¾Ó¿¡ °íÁ¤ (gpt´Ô´Ô´ÔÀÌ ¾Ë·ÁÁÜ)
+	glutWarpPointer(window_w / 2, window_h / 2);	// ë§ˆìš°ìŠ¤ë¥¼ ì¤‘ì•™ì— ê³ ì • (gptë‹˜ë‹˜ë‹˜ì´ ì•Œë ¤ì¤Œ)
 
 	glutPostRedisplay();
 }
@@ -1281,7 +1276,7 @@ void portal_update(int value) {
 }
 
 void move(int value) {
-	if (!collision(camera_pos)) {
+	if (!collision(camera_pos) || ghost) {
 		camera_pos.x += cameraFront.x * speed * UD;
 		camera_pos.z += cameraFront.z * speed * UD;
 		if (LR == -1) {
@@ -1430,7 +1425,10 @@ void drop(int value) {
 		}
 	}
 	if (!contact) {
-		if (camera_pos.y > tall) {
+		if (ghost) {
+			camera_pos.y = tall;
+		}
+		else if (camera_pos.y > tall) {
 			camera_pos.y += dropspeed;
 			dropspeed += -0.003f;
 		}
@@ -1540,7 +1538,7 @@ bool collision(glm::vec3 camera_positon) {
 		camera_positon.x += dir.x * speed * 0.7f * 2;
 		camera_positon.z += dir.z * speed * 0.7f * 2;
 	}
-	// Ãæµ¹°Ë»ç Ãæµ¹ ÇÏ¸é true
+	// ì¶©ëŒê²€ì‚¬ ì¶©ëŒ í•˜ë©´ true
 
 	for (int k = 0; k < 4; ++k) {
 		for (int i = 0; i < 20; ++i) {
@@ -1624,7 +1622,7 @@ bool in_endzone() {
 }
 
 void elevator(int value) {
-	if(in_endzone()){
+	if (in_endzone()) {
 		if (floors[9].pos.y <= 10.8f) {
 			floors[9].pos.y += floors[9].addy;
 			camera_pos.y = floors[9].pos.y + floors[9].scale.y + tall;
@@ -1677,7 +1675,7 @@ void render() {
 	glm::mat4 trans = glm::mat4(1.0f);
 	unsigned int shape_location = glGetUniformLocation(shaderProgramID, "transform");
 	glUniformMatrix4fv(shape_location, 1, GL_FALSE, glm::value_ptr(trans));
-	//----------------------------±âº» ¸Ê-----------------------------------
+	//----------------------------ê¸°ë³¸ ë§µ-----------------------------------
 	for (int i = 0; i < 10; ++i) {
 		for (int j = 0; j < 10; ++j) {
 			ceiling[i][j].translate();
@@ -1704,7 +1702,7 @@ void render() {
 	}
 	//----------------------------------------------------------------------
 
-	//-------------------------------º®-------------------------------------
+	//-------------------------------ë²½-------------------------------------
 	for (int i = 0; i < Wall_count; ++i) {
 		walls[i].translate();
 		walls[i].Draw_shape();
@@ -1713,7 +1711,7 @@ void render() {
 
 
 
-	//-------------------------------¹Ù´Ú------------------------------------
+	//-------------------------------ë°”ë‹¥------------------------------------
 	for (int i = 0; i < Floor_count; ++i) {
 		floors[i].translate();
 		floors[i].Draw_shape();
@@ -1723,24 +1721,24 @@ void render() {
 
 
 
-	//-------------------------------Å¥ºê-----------------------------------
+	//-------------------------------íë¸Œ-----------------------------------
 	cube.translate();
 	cube.Draw_shape();
 	//----------------------------------------------------------------------
 
-	//-------------------------------ÄÉÀÌÅ©---------------------------------
+	//-------------------------------ì¼€ì´í¬---------------------------------
 	cake.translate();
 	cake.Draw_shape();
 	//----------------------------------------------------------------------
 
-	//-------------------------------¹öÆ°-----------------------------------
+	//-------------------------------ë²„íŠ¼-----------------------------------
 	for (int i = 0; i < Button_count; ++i) {
 		button[i].translate();
 		button[i].Draw_shape();
 	}
 	//----------------------------------------------------------------------
 
-	//-------------------------------ÃÑ¾Ë?-----------------------------------
+	//-------------------------------ì´ì•Œ?-----------------------------------
 	if (blue_bullet.render) {
 		blue_bullet.translate();
 		blue_bullet.Draw_shape();
@@ -1751,7 +1749,7 @@ void render() {
 	}
 	//----------------------------------------------------------------------
 
-	//-------------------------------Æ÷Å»-----------------------------------
+	//-------------------------------í¬íƒˆ-----------------------------------
 	if (blue.render) {
 		blue.translate();
 		blue.Draw_shape();
@@ -1763,7 +1761,7 @@ void render() {
 	}
 	//----------------------------------------------------------------------
 
-	//-------------------------------¹İÅõ¸íº®-------------------------------
+	//-------------------------------ë°˜íˆ¬ëª…ë²½-------------------------------
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1775,7 +1773,7 @@ void render() {
 	}
 	//----------------------------------------------------------------------
 
-	//-------------------------------À¯¸®-----------------------------------
+	//-------------------------------ìœ ë¦¬-----------------------------------
 	for (int i = 0; i < Glass_count; ++i) {
 		glass[i].translate();
 		glass[i].Draw_shape();
