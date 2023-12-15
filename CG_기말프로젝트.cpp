@@ -1101,19 +1101,19 @@ void Mouse(int button, int state, int x, int y)
 void Motion(int x, int y)
 {
 	if (firstMouse) {
-		lastX = static_cast<float>(x);
-		lastY = static_cast<float>(y);
+		last_x = static_cast<float>(x);
+		last_y = static_cast<float>(y);
 		firstMouse = false;
 	}
 
-	float xOffset = static_cast<float>(x - window_w / 2);
-	float yOffset = static_cast<float>(window_h / 2 - y);
+	float x_offset = static_cast<float>(x - window_w / 2);
+	float y_offset = static_cast<float>(window_h / 2 - y);
 
-	xOffset *= sensitivity;
-	yOffset *= sensitivity;
+	x_offset *= sensitivity;
+	y_offset *= sensitivity;
 
-	yaw += xOffset;
-	pitch += yOffset;
+	yaw += x_offset;
+	pitch += y_offset;
 
 	// pitch의 범위를 제한합니다.
 	if (pitch > 89.0f) {
@@ -1129,8 +1129,8 @@ void Motion(int x, int y)
 	newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
 	cameraFront = glm::normalize(newFront);
 
-	lastX = static_cast<float>(x);
-	lastY = static_cast<float>(y);
+	last_x = static_cast<float>(x);
+	last_y = static_cast<float>(y);
 
 	glutWarpPointer(window_w / 2, window_h / 2);	// 마우스를 중앙에 고정 (gpt님님님이 알려줌)
 
